@@ -37,6 +37,7 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
   const [manual, setManual] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [cams, setCams] = useState<string[]>([]); // back cameras, for the switch button
+  const [zoom, setZoom] = useState<{ max: number; value: number } | null>(null); // null = lens has no zoom
   const live = useRef({ onScan, continuous, paused });
   const last = useRef({ code: "", at: 0 });
   const done = useRef(false);
@@ -92,9 +93,11 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
       const t = stream.getVideoTracks()[0];
       if (!el || !t) { stream.getTracks().forEach((x) => x.stop()); setCam("error"); return; }
       track.current = t;
-      const caps = (t.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean; focusMode?: string[] };
+      const caps = (t.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean; focusMode?: string[]; zoom?: { min: number; max: number } };
       setTorch(caps.torch ? false : null);
       if (caps.focusMode?.includes("continuous")) void t.applyConstraints({ advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet] }).catch(() => {});
+      // Phone lenses can't focus closer than ~10–15 cm: start at 2× zoom so the barcode looks big from a distance that stays sharp.
+      if (caps.zoom && caps.zoom.max >= 1.5) { setZoom({ max: caps.zoom.max, value: 1 }); void setLensZoom(t, Math.min(2, caps.zoom.max)); }
       el.srcObject = stream;
       await el.play().catch(() => {});
       let det;
@@ -124,6 +127,21 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
     // emit only touches refs and stable setters, so [attempt] is the only real dependency
   }, [attempt]);
 
+  async function setLensZoom(t: MediaStreamTrack, value: number) {
+    try {
+      await t.applyConstraints({ advanced: [{ zoom: value } as MediaTrackConstraintSet] });
+      setZoom((z) => z && { ...z, value });
+    } catch { /* lens refused: keep current zoom */ }
+  }
+
+  /** Tap the picture: re-run autofocus (single-shot where supported, else re-arm continuous). */
+  function refocus() {
+    const t = track.current;
+    const modes = (t?.getCapabilities?.() as { focusMode?: string[] } | undefined)?.focusMode ?? [];
+    const mode = modes.includes("single-shot") ? "single-shot" : modes.includes("continuous") ? "continuous" : null;
+    if (t && mode) void t.applyConstraints({ advanced: [{ focusMode: mode } as MediaTrackConstraintSet] }).catch(() => {});
+  }
+
   function switchCamera() {
     const cur = track.current?.getSettings().deviceId;
     const next = cams[(cams.indexOf(cur ?? "") + 1) % cams.length];
@@ -152,7 +170,7 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
     <div className={cn("flex min-h-0 flex-col gap-3", className)}>
       <div className="relative min-h-64 flex-1 overflow-hidden rounded-2xl bg-foreground">
         <style>{"@keyframes dk-scan{0%,100%{top:0}50%{top:calc(100% - 2px)}}"}</style>
-        <video ref={video} playsInline muted className={cn("absolute inset-0 size-full object-cover", problem && "hidden")} />
+        <video ref={video} playsInline muted onClick={refocus} className={cn("absolute inset-0 size-full object-cover", problem && "hidden")} />
         {problem ? (
           <div className="absolute inset-0 grid place-items-center p-6 text-center text-white">
             <div className="max-w-xs">
@@ -176,12 +194,18 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
             </div>
             <p className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white">
-                {cam === "starting" ? <><Loader2 className="size-3.5 animate-spin" />Starting camera</> : <><ScanLine className="size-3.5" />{continuous ? "Scanning, keep going" : "Point at the barcode"}</>}
+                {cam === "starting" ? <><Loader2 className="size-3.5 animate-spin" />Starting camera</> : <><ScanLine className="size-3.5" />{continuous ? "Scanning, keep going" : "Point at the barcode"} · hold 20 cm away, tap to focus</>}
               </span>
             </p>
             {cams.length > 1 && (
               <Button type="button" size="lg" variant="secondary" className="absolute left-3 top-3 bg-black/55 text-white hover:bg-black/70" onClick={switchCamera}>
                 <SwitchCamera /> Switch camera
+              </Button>
+            )}
+            {zoom && track.current && (
+              <Button type="button" size="lg" variant="secondary" className={cn("absolute top-3 bg-black/55 font-semibold tabular-nums text-white hover:bg-black/70", torch !== null ? "right-16" : "right-3")}
+                aria-label="Zoom" onClick={() => track.current && void setLensZoom(track.current, zoom.value >= 2 ? 1 : Math.min(2, zoom.max))}>
+                {zoom.value >= 2 ? "2×" : "1×"}
               </Button>
             )}
             {torch !== null && (
