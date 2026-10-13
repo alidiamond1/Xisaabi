@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
-import { audit, fail, getOwned, requireBusiness, requirePermission } from "./lib/access";
+import { audit, diff, fail, getOwned, requireBusiness, requirePermission } from "./lib/access";
 import { stockOut } from "./lib/stock";
 import { optStr, cents } from "./lib/validate";
 import { DAY_MS, daysLeft, expiryStatus } from "./shared/expiry";
@@ -93,6 +93,10 @@ export const setPrice = mutation({
     const p = await getOwned(ctx, businessId, a.productId);
     const price = cents(a.priceCents);
     await ctx.db.patch(p._id, { priceCents: price, updatedAt: Date.now() });
-    await audit(ctx, member, "expiry.setPrice", `${p.name} ${p.priceCents}->${price}`);
+    await audit(ctx, member, "expiry.setPrice", `${p.name} ${p.priceCents}->${price}`, undefined, {
+      targetId: p._id,
+      targetName: p.name,
+      changes: diff(p, { priceCents: price }, ["priceCents"]),
+    });
   },
 });

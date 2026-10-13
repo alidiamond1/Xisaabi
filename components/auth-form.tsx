@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { BrandMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, SubmitButton } from "@/components/common";
+import { Banner, Field, SubmitButton } from "@/components/common";
 import { errorMessage } from "@/convex/shared/errors";
 import { normalizeUsername } from "@/convex/shared/username";
 import { useSession } from "@/lib/session";
@@ -22,6 +23,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const signup = mode === "signUp";
+  const closed = useQuery(api.platformSettings.get)?.signupsOpen === false;
 
   useEffect(() => {
     if (!isAuthenticated || !me) return;
@@ -55,6 +57,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
           <span className="font-display text-xl font-semibold tracking-tight">Xisaabi</span>
         </Link>
         <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-card p-6 shadow-pop">
+          {signup && closed && <Banner tone="warning">{errorMessage({ data: "SIGNUPS_CLOSED" })}</Banner>}
           <div>
             <h1 className="text-lg font-semibold">{signup ? "Start your free trial" : "Welcome back"}</h1>
             <p className="text-sm text-muted-foreground">

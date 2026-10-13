@@ -50,6 +50,9 @@ export const createBusiness = mutation({
       .first();
     if (taken) fail("USERNAME_TAKEN");
 
+    const settings = await ctx.db.query("platformSettings").first();
+    if (settings && !settings.signupsOpen) fail("SIGNUPS_CLOSED");
+
     const plans = await ctx.db.query("plans").collect();
     const plan = plans.find((p) => p.isDefaultTrial);
     if (!plan) fail("NOT_FOUND");

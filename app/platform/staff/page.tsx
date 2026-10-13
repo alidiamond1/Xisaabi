@@ -2,15 +2,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { Lock, Plus, Unlock, UserCog } from "lucide-react";
+import { KeyRound, Plus, UserCog } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { ConfirmDialog, DataTable, EmptyState, Field, PageHeader, Panel, Pill, SubmitButton } from "@/components/common";
+import { DataTable, EmptyState, Field, PageHeader, Panel, Pill, SubmitButton } from "@/components/common";
 import { usePlatform } from "@/components/guard";
+import { PasswordDialog, SEL } from "@/components/platform";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { normalizeUsername } from "@/convex/shared/username";
-import { fmtDate } from "@/lib/session";
+import { fmtDate, fmtDateTime } from "@/lib/session";
 import { act, run } from "@/lib/run";
 
 export default function PlatformStaffPage() {
@@ -21,7 +23,9 @@ export default function PlatformStaffPage() {
   const rows = useQuery(api.platformStaff.list, sup ? {} : "skip");
   const setActive = useMutation(api.platformStaff.setActive);
   const [adding, setAdding] = useState(false);
-  const [lock, setLock] = useState<NonNullable<typeof rows>[number] | null>(null);
+  const setRole = useMutation(api.platformStaff.setRole);
+  const resetPw = useAction(api.platformStaff.resetPassword);
+  const [reset, setReset] = useState<NonNullable<typeof rows>[number] | null>(null);
   if (!sup) return null;
   return (
     <>
@@ -32,20 +36,23 @@ export default function PlatformStaffPage() {
           empty={<EmptyState icon={UserCog} title="No platform admins" />}
           cols={[
             { header: "Name", cell: (m) => <span><span className="font-medium">{m.fullName}</span><span className="block text-xs text-muted-foreground">@{m.username}</span></span> },
-            { header: "Role", cell: (m) => <Pill tone={m.role === "SUPER_ADMIN" ? "indigo" : "blue"}>{m.role.replace("_", " ")}</Pill> },
-            { header: "Status", cell: (m) => <Pill tone={m.isActive ? "green" : "red"}>{m.isActive ? "Active" : "Locked"}</Pill> },
-            { header: "Added", cell: (m) => fmtDate(m.createdAt) },
             {
-              header: "", className: "w-16 text-right", cell: (m) => m._id === me.member._id || m.role === "SUPER_ADMIN" ? null : m.isActive
-                ? <Button size="icon" variant="ghost" className="size-8 text-red-600" title="Lock" onClick={() => setLock(m)}><Lock /></Button>
-                : <Button size="icon" variant="ghost" className="size-8 text-emerald-600" title="Unlock" onClick={() => run(setActive({ memberId: m._id, isActive: true }), "Admin unlocked")}><Unlock /></Button>,
+              header: "Role", cell: (m) => m._id === me.member._id
+                ? <Pill tone="indigo">{m.role.replace("_", " ")} (you)</Pill>
+                : <select aria-label={`Role of ${m.fullName}`} value={m.role} onChange={(e) => run(setRole({ memberId: m._id, role: e.target.value as "SUPER_ADMIN" | "PLATFORM_ADMIN" }), "Role updated")} className={SEL}>
+                  <option value="SUPER_ADMIN">Super admin</option><option value="PLATFORM_ADMIN">Platform admin</option>
+                </select>,
             },
+            { header: "Last login", cell: (m) => m.lastLoginAt ? fmtDateTime(m.lastLoginAt) : <span className="text-muted-foreground">never</span> },
+            { header: "Active", cell: (m) => m._id === me.member._id ? <Pill tone="green">Active</Pill> : <Switch checked={m.isActive} aria-label={`${m.fullName} active`} onCheckedChange={(v) => run(setActive({ memberId: m._id, isActive: v }), v ? "Admin unlocked" : "Admin locked")} /> },
+            { header: "Added", cell: (m) => fmtDate(m.createdAt) },
+            { header: "", className: "w-36 text-right", cell: (m) => <Button size="sm" variant="outline" onClick={() => setReset(m)}><KeyRound /> Reset password</Button> },
           ]}
         />
       </Panel>
       <AddDialog open={adding} onClose={() => setAdding(false)} />
-      <ConfirmDialog open={!!lock} onOpenChange={(o) => !o && setLock(null)} title={`Lock ${lock?.fullName}?`} desc="They will lose platform access until unlocked." confirmLabel="Lock admin"
-        onConfirm={async () => { if (lock) await run(setActive({ memberId: lock._id, isActive: false }), "Admin locked"); }} />
+      <PasswordDialog open={!!reset} onClose={() => setReset(null)} title={`Reset password for ${reset?.fullName}`}
+        submit={(pw) => act(resetPw({ memberId: reset!._id, newPassword: pw }), "Password reset")} />
     </>
   );
 }

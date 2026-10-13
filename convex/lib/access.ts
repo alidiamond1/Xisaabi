@@ -123,12 +123,27 @@ export async function getOwned<T extends BusinessTable>(
   return doc;
 }
 
+export type Change = { field: string; from: string; to: string };
+
+const show = (x: unknown) => (x === undefined || x === null ? "" : typeof x === "object" ? JSON.stringify(x) : String(x)).slice(0, 200);
+
+/** Fields of `after` that differ from `before` (by JSON), as stringified from/to pairs. */
+export function diff(before: object, after: object, fields: string[]): Change[] {
+  const b = before as Record<string, unknown>;
+  const a = after as Record<string, unknown>;
+  return fields
+    .filter((f) => JSON.stringify(b[f]) !== JSON.stringify(a[f]))
+    .map((f) => ({ field: f, from: show(b[f]), to: show(a[f]) }));
+}
+
+/** Write an audit row. `action` is "<module>.<verb>"; pass `extra.changes` from diff() for updates. */
 export async function audit(
   ctx: MutationCtx,
   actor: Doc<"members">,
   action: string,
   details?: string,
   businessId: Id<"businesses"> | undefined = actor.businessId,
+  extra: { targetId?: string; targetName?: string; changes?: Change[] } = {},
 ) {
   await ctx.db.insert("auditLog", {
     businessId,
@@ -136,6 +151,10 @@ export async function audit(
     actorName: actor.fullName,
     action,
     details,
+    module: action.split(".")[0],
+    targetId: extra.targetId,
+    targetName: extra.targetName,
+    changes: extra.changes?.length ? extra.changes : undefined,
     createdAt: Date.now(),
   });
 }

@@ -52,7 +52,7 @@ export function NativeSelect({ value, onChange, options, placeholder, className,
 } & Omit<React.ComponentProps<"select">, "value" | "onChange" | "children">) {
   return (
     <select {...p} value={value} onChange={(e) => onChange(e.target.value)}
-      className={cn("h-10 w-full min-w-0 rounded-lg border border-input bg-card px-2.5 text-base shadow-card outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive md:text-sm", className)}>
+      className={cn("h-11 w-full min-w-0 rounded-lg md:h-10 border border-input bg-card px-2.5 text-base shadow-card outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive md:text-sm", className)}>
       {placeholder !== undefined && <option value="">{placeholder}</option>}
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>

@@ -4,7 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
-import { audit, fail, requireBusiness, type BusinessAccess } from "./lib/access";
+import { audit, diff, fail, requireBusiness, type BusinessAccess } from "./lib/access";
 import { optStr, str } from "./lib/validate";
 import { hasPermission, type Permission, type Permissions } from "./shared/permissions";
 import { permissions as permissionsV } from "./schema";
@@ -108,7 +108,7 @@ export const insertMember = internalMutation({
       isActive: true,
       createdAt: Date.now(),
     });
-    await audit(ctx, access.member, "staff.create", `${a.username} (${a.role})`);
+    await audit(ctx, access.member, "staff.create", `${a.username} (${a.role})`, undefined, { targetId: id, targetName: a.username });
     return id;
   },
 });
@@ -168,13 +168,18 @@ export const update = mutation({
     if (!canManage(access, target)) fail("FORBIDDEN");
     if (access.role === "MANAGER" && a.role !== "CASHIER") fail("FORBIDDEN");
     checkPerms(access, a.permissions);
-    await ctx.db.patch(target._id, {
+    const next = {
       fullName: str(a.fullName),
       phone: optStr(a.phone, 50),
       role: a.role,
       ...(a.permissions ? { permissions: a.permissions } : {}),
+    };
+    await ctx.db.patch(target._id, next);
+    await audit(ctx, access.member, "staff.update", `${target.username} -> ${a.role}`, undefined, {
+      targetId: target._id,
+      targetName: target.username,
+      changes: diff(target, next, Object.keys(next)),
     });
-    await audit(ctx, access.member, "staff.update", `${target.username} -> ${a.role}${a.permissions ? " " + JSON.stringify(a.permissions) : ""}`);
   },
 });
 
@@ -186,7 +191,11 @@ export const setActive = mutation({
     if (target._id === access.member._id || !canManage(access, target)) fail("FORBIDDEN");
     if (a.isActive && !target.isActive) await assertUserLimit(ctx, access);
     await ctx.db.patch(target._id, { isActive: a.isActive });
-    await audit(ctx, access.member, a.isActive ? "staff.unlock" : "staff.lock", target.username);
+    await audit(ctx, access.member, a.isActive ? "staff.unlock" : "staff.lock", target.username, undefined, {
+      targetId: target._id,
+      targetName: target.username,
+      changes: diff(target, { isActive: a.isActive }, ["isActive"]),
+    });
   },
 });
 

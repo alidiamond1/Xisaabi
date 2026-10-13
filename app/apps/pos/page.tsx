@@ -302,7 +302,7 @@ export default function PosPage() {
 
   const cartPanel = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 max-lg:pr-14">
         <h2 className="font-display text-base font-semibold">Current sale <span className="ml-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-800 tabular-nums">{fmtQty(itemCount)}</span></h2>
         <div className="flex items-center gap-1">
           {lines.length > 0 && <Button variant="ghost" size="lg" onClick={holdCurrent}><Pause /> Hold</Button>}
@@ -370,7 +370,7 @@ export default function PosPage() {
     <div className="flex h-dvh flex-col bg-background">
       <input ref={scan} aria-label="Barcode scanner input" className="pointer-events-none absolute size-0 opacity-0" autoComplete="off"
         onKeyDown={(e) => { if (e.key === "Enter") { onScan(e.currentTarget.value); e.currentTarget.value = ""; } }} />
-      <header className="flex h-14 shrink-0 items-center gap-1.5 border-b bg-card px-2 sm:px-3">
+      <header className="flex h-14 shrink-0 items-center overflow-x-auto gap-1.5 border-b bg-card px-2 sm:px-3">
         <Button asChild variant="ghost" size="icon-lg" aria-label="Back to apps"><Link href="/apps"><LayoutGrid /></Link></Button>
         <span className="hidden size-7 place-items-center rounded-md bg-brand-100 text-brand-700 sm:grid"><ShoppingCart className="size-4" /></span>
         <span className="hidden font-display font-semibold sm:inline">Point of Sale</span>
@@ -387,7 +387,7 @@ export default function PosPage() {
         <Button variant="outline" size="lg" aria-label="Return items" onClick={() => setDlg("returns")}><Undo2 /><span className="hidden sm:inline">Return</span></Button>
         <Button variant="outline" size="lg" aria-label="Recent sales" onClick={() => setDlg("recent")}><History /><span className="hidden sm:inline">Recent</span></Button>
         <Button variant="outline" size="lg" aria-label="Scan with camera" onClick={() => setCamera(true)}><ScanLine /><span className="hidden lg:inline">Scan</span></Button>
-        <PhoneScannerButton target="POS" size="lg" label="Phone" onScan={(code) => void onScan(code)} />
+        <PhoneScannerButton target="POS" size="lg" label="Phone" className="max-sm:hidden" onScan={(code) => void onScan(code)} />
         {serialsOn && <Button variant="outline" size="lg" aria-label="Warranty check" onClick={() => setDlg("warranty")}><ShieldCheck /><span className="hidden lg:inline">Warranty</span></Button>}
       </header>
       <ShiftBar currency={cur} />

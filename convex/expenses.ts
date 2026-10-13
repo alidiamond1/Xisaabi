@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { audit, fail, getOwned, requireBusiness } from "./lib/access";
+import { audit, diff, fail, getOwned, requireBusiness } from "./lib/access";
 import { optStr, posInt, str, ts } from "./lib/validate";
 import { paymentMethod } from "./schema";
 import { openShiftOf } from "./shifts";
@@ -68,7 +68,7 @@ export const update = mutation({
     if ((category !== e.category && !business.settings.expenseCategories.includes(category)) || a.paidVia === "CREDIT") fail("INVALID_INPUT");
     const amountCents = posInt(a.amountCents, 1e12);
     const shiftId = a.paidVia === "CASH" ? (e.shiftId ?? (await openShiftOf(ctx, member._id))?._id) : undefined;
-    await ctx.db.patch(e._id, {
+    const next = {
       category,
       amountCents,
       paidVia: a.paidVia,
@@ -76,8 +76,13 @@ export const update = mutation({
       note: optStr(a.note, 500) ?? "",
       shiftId,
       spentAt: ts(a.spentAt),
+    };
+    await ctx.db.patch(e._id, next);
+    await audit(ctx, member, "expense.update", `${category} ${e.amountCents} -> ${amountCents}`, undefined, {
+      targetId: e._id,
+      targetName: category,
+      changes: diff(e, next, ["category", "amountCents", "paidVia", "payee", "note", "spentAt"]),
     });
-    await audit(ctx, member, "expense.update", `${category} ${e.amountCents} -> ${amountCents}`);
   },
 });
 

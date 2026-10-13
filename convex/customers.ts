@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { audit, fail, getOwned, requireBusiness } from "./lib/access";
+import { audit, diff, fail, getOwned, requireBusiness } from "./lib/access";
 import { cents, optStr, posInt, str, ts } from "./lib/validate";
 import { DAY_MS } from "./shared/expiry";
 import { openShiftOf } from "./shifts";
@@ -174,8 +174,13 @@ export const update = mutation({
     const limit = cents(a.creditLimitCents);
     // credit limit and group are risk/pricing controls: cashiers must not change them
     if (role === "CASHIER" && (limit !== c.creditLimitCents || a.group !== c.group)) fail("FORBIDDEN");
-    await ctx.db.patch(c._id, { ...text(a), group: a.group, creditLimitCents: limit });
-    await audit(ctx, member, "customer.update", c.fullName);
+    const next = { ...text(a), group: a.group, creditLimitCents: limit };
+    await ctx.db.patch(c._id, next);
+    await audit(ctx, member, "customer.update", c.fullName, undefined, {
+      targetId: c._id,
+      targetName: c.fullName,
+      changes: diff(c, next, Object.keys(next)),
+    });
   },
 });
 

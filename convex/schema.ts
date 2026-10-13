@@ -154,6 +154,10 @@ export default defineSchema({
     reference: v.optional(v.string()),
     recordedBy: v.id("members"),
     createdAt: v.number(),
+    // v4 — voided payments stay for the record but count nowhere
+    voidedAt: v.optional(v.number()),
+    voidReason: v.optional(v.string()),
+    voidedBy: v.optional(v.id("members")),
   })
     .index("by_business", ["businessId", "createdAt"])
     .index("by_created", ["createdAt"]),
@@ -175,6 +179,8 @@ export default defineSchema({
     unreadByBusiness: v.boolean(),
     lastMessageAt: v.number(),
     createdAt: v.number(),
+    assignedTo: v.optional(v.id("members")), // v4 — platform staff handling it
+    firstResponseAt: v.optional(v.number()),
   })
     .index("by_business", ["businessId", "lastMessageAt"])
     .index("by_status", ["status", "lastMessageAt"]),
@@ -197,9 +203,65 @@ export default defineSchema({
     action: v.string(), // "staff.create", "business.suspend", "plan.update", ...
     details: v.optional(v.string()),
     createdAt: v.number(),
+    // v4 — what was changed
+    module: v.optional(v.string()), // prefix of `action`: "product", "business", ...
+    targetId: v.optional(v.string()),
+    targetName: v.optional(v.string()),
+    changes: v.optional(v.array(v.object({ field: v.string(), from: v.string(), to: v.string() }))),
   })
     .index("by_business", ["businessId", "createdAt"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_module", ["module", "createdAt"])
+    .index("by_actor", ["actorMemberId", "createdAt"]),
+
+  // v4 — per-business rollup refreshed hourly by cron (never scan sales on page load).
+  businessStats: defineTable({
+    businessId: v.id("businesses"),
+    lastSaleAt: v.optional(v.number()),
+    lastLoginAt: v.optional(v.number()),
+    sales30dCents: v.number(),
+    sales30dCount: v.number(),
+    gmvThisMonthCents: v.number(),
+    gmvLastMonthCents: v.number(),
+    products: v.number(),
+    customers: v.number(),
+    staff: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_business", ["businessId"])
+    .index("by_lastSale", ["lastSaleAt"]),
+
+  // v4 — internal platform-side notes about a business (never visible to tenants).
+  businessNotes: defineTable({
+    businessId: v.id("businesses"),
+    body: v.string(),
+    authorMemberId: v.id("members"),
+    authorName: v.string(),
+    createdAt: v.number(),
+  }).index("by_business", ["businessId", "createdAt"]),
+
+  // v4 — platform → business banners. Empty audience arrays = everyone.
+  announcements: defineTable({
+    title: v.string(),
+    body: v.string(),
+    level: v.union(v.literal("INFO"), v.literal("WARNING"), v.literal("SUCCESS")),
+    audience: v.object({ planIds: v.array(v.id("plans")), businessTypes: v.array(v.string()) }),
+    startsAt: v.number(),
+    endsAt: v.optional(v.number()),
+    isActive: v.boolean(),
+    createdBy: v.id("members"),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
+
+  // v4 — singleton (first row). Contact info is public; nothing secret goes here.
+  platformSettings: defineTable({
+    paymentInstructions: v.string(),
+    supportPhone: v.string(),
+    supportWhatsApp: v.string(),
+    supportEmail: v.string(),
+    signupsOpen: v.boolean(),
+    updatedAt: v.number(),
+  }),
 
   // ───────────── People ─────────────
 

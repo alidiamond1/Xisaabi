@@ -88,7 +88,7 @@ export function RefundForm({ sale, methods, currency, onDone }: {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">What is being returned?</h3>
-        <button type="button" className="h-9 px-2 text-sm font-medium text-brand-700 hover:underline"
+        <button type="button" className="h-11 px-2 text-sm font-medium text-brand-700 hover:underline"
           onClick={() => {
             setQty(Object.fromEntries(picks.filter((p) => p.left > 0 && !p.it.serials?.length).map((p) => [p.k, String(p.left)])));
             // numbers are only all known to be returnable on a line nothing has been returned from yet
@@ -141,7 +141,7 @@ export function RefundForm({ sale, methods, currency, onDone }: {
         <label htmlFor="refund-reason" className="text-sm font-semibold">Reason <span className="text-danger" aria-hidden>*</span></label>
         <Input id="refund-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} className="h-11" />
         <div className="flex flex-wrap gap-1.5">
-          {REASONS.map((r) => <button key={r} type="button" onClick={() => setReason(r)} className="h-9 rounded-full border bg-card px-3 text-xs font-medium text-muted-foreground hover:bg-muted">{r}</button>)}
+          {REASONS.map((r) => <button key={r} type="button" onClick={() => setReason(r)} className="h-11 rounded-full border bg-card px-3 text-xs font-medium text-muted-foreground hover:bg-muted">{r}</button>)}
         </div>
       </div>
 

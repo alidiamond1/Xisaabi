@@ -21,6 +21,7 @@ export default function SupportPage() {
   const tickets = useQuery(api.support.list);
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const contact = useQuery(api.platformSettings.get);
   const rows: TicketRow[] | undefined = tickets
     ?.filter((t) => (view === "open" ? t.status !== "CLOSED" : view === "closed" ? t.status === "CLOSED" : true))
     .map((t) => ({ ...t, unread: t.unreadByBusiness, sub: t.category.replace("_", " ").toLowerCase() }));
@@ -28,6 +29,13 @@ export default function SupportPage() {
   return (
     <>
       <PageHeader title="Support" desc="Ask our team for help. We reply here." actions={<Button onClick={() => setCreating(true)}><Plus /> New ticket</Button>} />
+      {(contact?.supportPhone || contact?.supportWhatsApp) && (
+        <p className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          Need help now?
+          {contact.supportPhone && <a href={`tel:${contact.supportPhone}`} className="inline-flex min-h-11 items-center font-medium text-brand-700 sm:min-h-0">Call {contact.supportPhone}</a>}
+          {contact.supportWhatsApp && <a href={`https://wa.me/${contact.supportWhatsApp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center font-medium text-brand-700 sm:min-h-0">WhatsApp {contact.supportWhatsApp}</a>}
+        </p>
+      )}
       <TicketLayout tickets={rows} selected={selected} onSelect={setSelected}>
         {selected && <BusinessThread key={selected} id={selected as Id<"tickets">} />}
       </TicketLayout>
@@ -72,7 +80,7 @@ function NewTicket({ open, onClose, onCreated }: { open: boolean; onClose: () =>
     setBusy(false);
     if (id) { setSubject(""); setBody(""); onCreated(id); onClose(); }
   }
-  const sel = "h-9 w-full rounded-lg border bg-white px-2 text-sm";
+  const sel = "h-11 w-full rounded-lg border bg-white px-2 text-base md:h-9 md:text-sm";
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>

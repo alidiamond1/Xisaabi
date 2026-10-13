@@ -141,7 +141,7 @@ function Body({ totalCents, currency, methods, customer, online, onPickCustomer,
                   className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-2 text-base font-medium md:text-sm">
                   {methods.filter((x) => x === r.method || !rows.some((o) => o.method === x)).map((x) => <option key={x} value={x} disabled={x === "CREDIT" && !online}>{METHOD_LABEL[x]}</option>)}
                 </select>
-                <Input inputMode="decimal" aria-label={`${METHOD_LABEL[r.method]} amount`} placeholder="0.00" value={r.amount} className="h-11 w-32 text-right tabular-nums"
+                <Input inputMode="decimal" aria-label={`${METHOD_LABEL[r.method]} amount`} placeholder="0.00" value={r.amount} className="h-11 w-24 text-right sm:w-32 tabular-nums"
                   onChange={(e) => upd(r.id, { amount: e.target.value })} />
                 <button type="button" aria-label="Remove payment row" disabled={rows.length === 1}
                   className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:text-danger disabled:opacity-30"

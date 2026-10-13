@@ -1,10 +1,12 @@
-import { createAccount } from "@convex-dev/auth/server";
+import { createAccount, invalidateSessions, modifyAccountCredentials } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import { audit, fail, requirePlatform } from "./lib/access";
+import type { QueryCtx } from "./_generated/server";
+import { audit, diff, fail, requirePlatform } from "./lib/access";
 import { str } from "./lib/validate";
+import { platformRole } from "./schema";
 import { normalizeUsername } from "./shared/username";
 
 export const list = query({
@@ -15,15 +17,21 @@ export const list = query({
     const members = await ctx.db
       .query("members")
       .withIndex("by_business", (q) => q.eq("businessId", undefined))
-      .collect();
-    return members.map((m) => ({
-      _id: m._id,
-      fullName: m.fullName,
-      username: m.username,
-      role: m.role,
-      isActive: m.isActive,
-      createdAt: m.createdAt,
-    }));
+      .take(200);
+    return await Promise.all(
+      members.map(async (m) => {
+        const s = await ctx.db.query("authSessions").withIndex("userId", (q) => q.eq("userId", m.userId)).order("desc").first();
+        return {
+          _id: m._id,
+          fullName: m.fullName,
+          username: m.username,
+          role: m.role,
+          isActive: m.isActive,
+          createdAt: m.createdAt,
+          lastLoginAt: s?._creationTime ?? null,
+        };
+      }),
+    );
   },
 });
 
@@ -80,14 +88,78 @@ export const create = action({
   },
 });
 
+/** Another active SUPER_ADMIN must remain after `t` stops being one. */
+async function keepOneSuper(ctx: QueryCtx, t: Doc<"members">) {
+  if (t.role !== "SUPER_ADMIN" || !t.isActive) return;
+  const staff = await ctx.db.query("members").withIndex("by_business", (q) => q.eq("businessId", undefined)).take(200);
+  if (!staff.some((m) => m._id !== t._id && m.role === "SUPER_ADMIN" && m.isActive)) fail("LAST_SUPER_ADMIN");
+}
+
+async function platformMember(ctx: QueryCtx, id: Id<"members">) {
+  const t = await ctx.db.get(id);
+  if (!t || t.businessId) fail("NOT_FOUND"); // platform members only
+  return t;
+}
+
 export const setActive = mutation({
   args: { memberId: v.id("members"), isActive: v.boolean() },
   handler: async (ctx, a) => {
     const me = await requirePlatform(ctx, ["SUPER_ADMIN"]);
-    const t = await ctx.db.get(a.memberId);
-    if (!t || t.businessId) fail("NOT_FOUND"); // platform members only
+    const t = await platformMember(ctx, a.memberId);
     if (t._id === me._id) fail("FORBIDDEN");
+    if (!a.isActive) await keepOneSuper(ctx, t);
     await ctx.db.patch(t._id, { isActive: a.isActive });
-    await audit(ctx, me, a.isActive ? "platformStaff.unlock" : "platformStaff.lock", t.username);
+    await audit(ctx, me, a.isActive ? "platformStaff.unlock" : "platformStaff.lock", t.username, undefined, {
+      targetId: t._id,
+      targetName: t.username,
+      changes: diff(t, { isActive: a.isActive }, ["isActive"]),
+    });
+  },
+});
+
+export const setRole = mutation({
+  args: { memberId: v.id("members"), role: platformRole },
+  handler: async (ctx, a) => {
+    const me = await requirePlatform(ctx, ["SUPER_ADMIN"]);
+    const t = await platformMember(ctx, a.memberId);
+    if (a.role !== "SUPER_ADMIN") await keepOneSuper(ctx, t);
+    await ctx.db.patch(t._id, { role: a.role });
+    await audit(ctx, me, "platformStaff.setRole", t.username, undefined, {
+      targetId: t._id,
+      targetName: t.username,
+      changes: diff(t, { role: a.role }, ["role"]),
+    });
+  },
+});
+
+// resetPassword (action): check -> change credentials -> audit. The password is never logged.
+
+export const checkReset = internalQuery({
+  args: { memberId: v.id("members") },
+  handler: async (ctx, a) => {
+    await requirePlatform(ctx, ["SUPER_ADMIN"]);
+    const t = await platformMember(ctx, a.memberId);
+    return { userId: t.userId, username: t.username };
+  },
+});
+
+export const logReset = internalMutation({
+  args: { memberId: v.id("members") },
+  handler: async (ctx, a) => {
+    const me = await requirePlatform(ctx, ["SUPER_ADMIN"]);
+    const t = await platformMember(ctx, a.memberId);
+    await audit(ctx, me, "platformStaff.resetPassword", t.username, undefined, { targetId: t._id, targetName: t.username });
+  },
+});
+
+export const resetPassword = action({
+  args: { memberId: v.id("members"), newPassword: v.string() },
+  handler: async (ctx, a): Promise<void> => {
+    const t = await ctx.runQuery(internal.platformStaff.checkReset, { memberId: a.memberId });
+    if (a.newPassword.length < 8) fail("PASSWORD_TOO_SHORT");
+    if (a.newPassword.length > 200) fail("INVALID_INPUT");
+    await modifyAccountCredentials(ctx, { provider: "password", account: { id: t.username, secret: a.newPassword } });
+    await invalidateSessions(ctx, { userId: t.userId });
+    await ctx.runMutation(internal.platformStaff.logReset, { memberId: a.memberId });
   },
 });

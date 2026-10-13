@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 type Plan = FunctionReturnType<typeof api.billing.plans>[number];
 
-const PAYMENT_INFO = process.env.NEXT_PUBLIC_PAYMENT_INSTRUCTIONS ?? "Pay via EVC Plus or Zaad to the number our team sends you, then we activate your plan.";
+const FALLBACK_PAYMENT_INFO = process.env.NEXT_PUBLIC_PAYMENT_INSTRUCTIONS ?? "Pay via EVC Plus or Zaad to the number our team sends you, then we activate your plan.";
 
 function Usage({ label, used, max }: { label: string; used: number; max: number }) {
   return (
@@ -29,6 +29,7 @@ export default function BillingPage() {
   const b = useQuery(api.billing.current);
   const plans = useQuery(api.billing.plans);
   const request = useMutation(api.billing.requestPlan);
+  const PAYMENT_INFO = useQuery(api.platformSettings.get)?.paymentInstructions || FALLBACK_PAYMENT_INFO;
   const [pick, setPick] = useState<Plan | null>(null);
 
   if (!b || !plans) return <Panel><ListSkeleton /></Panel>;

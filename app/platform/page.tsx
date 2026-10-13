@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { usePlatform } from "@/components/guard";
@@ -8,7 +9,8 @@ import { cn } from "@/lib/utils";
 
 export default function PlatformLauncher() {
   const me = usePlatform();
-  const stats = useQuery(api.platformStats.overview);
+  const [now] = useState(() => Math.floor(Date.now() / 60_000) * 60_000);
+  const stats = useQuery(api.platformStats.overview, { now });
   const apps = PLATFORM_APPS.filter((a) => !a.superOnly || me.member.role === "SUPER_ADMIN");
   return (
     <div className="space-y-5">
@@ -16,7 +18,7 @@ export default function PlatformLauncher() {
         <h1 className="text-xl font-semibold tracking-tight">Hello, {me.member.fullName.split(" ")[0]}</h1>
         <p className="text-sm text-muted-foreground">
           {me.member.role === "SUPER_ADMIN" ? "Super admin" : "Platform admin"}
-          {stats && ` · ${stats.businesses.total} businesses · ${stats.openTickets} open tickets`}
+          {stats && ` · ${stats.counts.total} businesses · ${stats.openTickets} open tickets`}
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

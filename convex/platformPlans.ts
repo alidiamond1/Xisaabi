@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { audit, fail, requirePlatform } from "./lib/access";
+import { audit, diff, fail, requirePlatform } from "./lib/access";
 import { cents, str } from "./lib/validate";
 import { moduleKey } from "./schema";
 
@@ -88,7 +88,11 @@ export const update = mutation({
     if (existing.isDefaultTrial && !data.isDefaultTrial) fail("INVALID_INPUT");
     await ctx.db.replace(planId, data);
     if (data.isDefaultTrial) await unsetOtherDefaults(ctx, planId);
-    await audit(ctx, me, "plan.update", data.name);
+    await audit(ctx, me, "plan.update", data.name, undefined, {
+      targetId: planId,
+      targetName: data.name,
+      changes: diff(existing, data, Object.keys(data)),
+    });
   },
 });
 

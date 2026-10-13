@@ -26,7 +26,7 @@ export function parseSigned(s: string): number | null {
   return c === null ? null : neg ? -c : c;
 }
 
-const selectCls = "h-10 w-full rounded-lg border border-input bg-card px-3 text-base shadow-card md:text-sm";
+const selectCls = "h-11 w-full rounded-lg md:h-10 border border-input bg-card px-3 text-base shadow-card md:text-sm";
 
 /** Add / edit a customer. Cashiers never see credit limit, group or opening balance. */
 export function CustomerSheet({ value, onClose, onSaved }: { value: CustomerDoc | "new" | null; onClose: () => void; onSaved?: (id: Id<"customers">) => void }) {

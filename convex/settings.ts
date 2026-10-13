@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { audit, fail, requireBusiness } from "./lib/access";
+import { audit, diff, fail, requireBusiness } from "./lib/access";
 import { cents, checkLogo, optStr, str } from "./lib/validate";
 import { feature, paymentMethod } from "./schema";
 import { MAX_BUSINESS_TYPES, PRESETS, businessFeatures, mergePresets, type AttributeDef } from "./shared/presets";
@@ -43,7 +43,7 @@ export const updateProfile = mutation({
     if (a.logoId) await checkLogo(ctx, a.logoId, businessId);
     // logoId omitted = keep current logo
     const logoId = a.logoId ?? business.logoId;
-    await ctx.db.patch(businessId, {
+    const next = {
       name: str(a.name),
       businessType: str(a.businessType),
       phone: str(a.phone, 50),
@@ -53,11 +53,16 @@ export const updateProfile = mutation({
       country: str(a.country),
       currency: str(a.currency, 8).toUpperCase(),
       logoId,
-    });
+    };
+    await ctx.db.patch(businessId, next);
     if (a.logoId && business.logoId && business.logoId !== a.logoId) {
       await ctx.storage.delete(business.logoId);
     }
-    await audit(ctx, member, "settings.profile");
+    await audit(ctx, member, "settings.profile", undefined, undefined, {
+      targetId: businessId,
+      targetName: next.name,
+      changes: diff(business, next, Object.keys(next)),
+    });
   },
 });
 
@@ -89,8 +94,7 @@ export const updateSettings = mutation({
     if (!(a.taxRatePercent >= 0 && a.taxRatePercent <= 100)) fail("INVALID_INPUT");
     if (!Number.isInteger(a.lowStockThreshold) || a.lowStockThreshold < 0 || a.lowStockThreshold > 1e6)
       fail("INVALID_INPUT");
-    await ctx.db.patch(businessId, {
-      settings: {
+    const next = {
         receiptHeader: optStr(a.receiptHeader, 500),
         receiptFooter: optStr(a.receiptFooter, 500),
         taxRatePercent: a.taxRatePercent,
@@ -102,9 +106,12 @@ export const updateSettings = mutation({
         expenseCategories: categories,
         discountPresets: presets,
         shareToCatalog: a.shareToCatalog ?? cur.shareToCatalog, // omitted = keep (never silently re-enable sharing)
-      },
+    };
+    await ctx.db.patch(businessId, { settings: next });
+    await audit(ctx, member, "settings.update", undefined, undefined, {
+      targetId: businessId,
+      changes: diff(cur, next, Object.keys(next)),
     });
-    await audit(ctx, member, "settings.update");
   },
 });
 
@@ -128,7 +135,7 @@ export const features = query({
 export const updateFeatures = mutation({
   args: { features: v.array(feature), attributeDefs: v.array(defView) },
   handler: async (ctx, a) => {
-    const { member, businessId } = await requireBusiness(ctx, "settings", OPTS);
+    const { member, businessId, business } = await requireBusiness(ctx, "settings", OPTS);
     if (a.attributeDefs.length > 20) fail("INVALID_INPUT");
     const keys = new Set<string>();
     const defs: AttributeDef[] = a.attributeDefs.map((d) => {
@@ -138,8 +145,12 @@ export const updateFeatures = mutation({
       if (options && (options.length < 1 || options.length > 30)) fail("INVALID_INPUT");
       return { key: d.key, label: str(d.label, 40), type: d.type, options, searchable: d.searchable };
     });
-    await ctx.db.patch(businessId, { features: [...new Set(a.features)], attributeDefs: defs });
-    await audit(ctx, member, "settings.features");
+    const features = [...new Set(a.features)];
+    await ctx.db.patch(businessId, { features, attributeDefs: defs });
+    await audit(ctx, member, "settings.features", undefined, undefined, {
+      targetId: businessId,
+      changes: diff({ features: businessFeatures(business), attributeDefs: business.attributeDefs }, { features, attributeDefs: defs }, ["features", "attributeDefs"]),
+    });
   },
 });
 

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as announcements from "../announcements.js";
 import type * as auth from "../auth.js";
 import type * as barcodes from "../barcodes.js";
 import type * as billing from "../billing.js";
@@ -29,8 +30,12 @@ import type * as lookups from "../lookups.js";
 import type * as members from "../members.js";
 import type * as onboarding from "../onboarding.js";
 import type * as plans from "../plans.js";
-import type * as platformAudit from "../platformAudit.js";
+import type * as platformActivity from "../platformActivity.js";
+import type * as platformAnnouncements from "../platformAnnouncements.js";
+import type * as platformBilling from "../platformBilling.js";
 import type * as platformPlans from "../platformPlans.js";
+import type * as platformSecurity from "../platformSecurity.js";
+import type * as platformSettings from "../platformSettings.js";
 import type * as platformStaff from "../platformStaff.js";
 import type * as platformStats from "../platformStats.js";
 import type * as platformSupport from "../platformSupport.js";
@@ -46,6 +51,7 @@ import type * as settings from "../settings.js";
 import type * as shared_barcode from "../shared/barcode.js";
 import type * as shared_errors from "../shared/errors.js";
 import type * as shared_expiry from "../shared/expiry.js";
+import type * as shared_health from "../shared/health.js";
 import type * as shared_modules from "../shared/modules.js";
 import type * as shared_money from "../shared/money.js";
 import type * as shared_permissions from "../shared/permissions.js";
@@ -63,6 +69,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  announcements: typeof announcements;
   auth: typeof auth;
   barcodes: typeof barcodes;
   billing: typeof billing;
@@ -84,8 +91,12 @@ declare const fullApi: ApiFromModules<{
   members: typeof members;
   onboarding: typeof onboarding;
   plans: typeof plans;
-  platformAudit: typeof platformAudit;
+  platformActivity: typeof platformActivity;
+  platformAnnouncements: typeof platformAnnouncements;
+  platformBilling: typeof platformBilling;
   platformPlans: typeof platformPlans;
+  platformSecurity: typeof platformSecurity;
+  platformSettings: typeof platformSettings;
   platformStaff: typeof platformStaff;
   platformStats: typeof platformStats;
   platformSupport: typeof platformSupport;
@@ -101,6 +112,7 @@ declare const fullApi: ApiFromModules<{
   "shared/barcode": typeof shared_barcode;
   "shared/errors": typeof shared_errors;
   "shared/expiry": typeof shared_expiry;
+  "shared/health": typeof shared_health;
   "shared/modules": typeof shared_modules;
   "shared/money": typeof shared_money;
   "shared/permissions": typeof shared_permissions;

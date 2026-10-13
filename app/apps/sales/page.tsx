@@ -28,7 +28,7 @@ type Shift = FunctionReturnType<typeof api.shifts.list>[number];
 type Status = "" | "COMPLETED" | "PARTIALLY_REFUNDED" | "REFUNDED";
 type Method = "" | "CASH" | "EVC" | "ZAAD" | "EDAHAB" | "BANK" | "CREDIT";
 
-const selectCls = "h-10 rounded-lg border border-input bg-card px-3 text-base shadow-card md:text-sm";
+const selectCls = "h-11 rounded-lg md:h-10 border border-input bg-card px-3 text-base shadow-card md:text-sm";
 
 export default function SalesPage() {
   const view = useSearchParams().get("view") === "shifts" ? "shifts" : "sales";

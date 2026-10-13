@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { audit, fail, getOwned, requireBusiness } from "./lib/access";
+import { audit, diff, fail, getOwned, requireBusiness } from "./lib/access";
 import { cents, optStr, posInt, str } from "./lib/validate";
 import { paymentMethod } from "./schema";
 
@@ -80,8 +80,13 @@ export const update = mutation({
   handler: async (ctx, { supplierId, ...a }) => {
     const { businessId, member } = await requireBusiness(ctx, "purchases");
     const s = await getOwned(ctx, businessId, supplierId);
-    await ctx.db.patch(s._id, cleanInfo(a));
-    await audit(ctx, member, "supplier.update", s.name);
+    const next = cleanInfo(a);
+    await ctx.db.patch(s._id, next);
+    await audit(ctx, member, "supplier.update", s.name, undefined, {
+      targetId: s._id,
+      targetName: s.name,
+      changes: diff(s, next, Object.keys(next)),
+    });
   },
 });
 

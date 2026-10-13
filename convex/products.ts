@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { audit, fail, getOwned, requireBusiness, requirePermission, type BusinessAccess } from "./lib/access";
+import { audit, diff, fail, getOwned, requireBusiness, requirePermission, type BusinessAccess } from "./lib/access";
 import { roundQty, stockIn } from "./lib/stock";
 import { cents, optStr, str, ts } from "./lib/validate";
 import { hasPermission } from "./shared/permissions";
@@ -468,7 +468,11 @@ export const update = mutation({
         await ctx.db.patch(c._id, { name: d.name });
       }
     }
-    await audit(ctx, member, "product.update", d.name);
+    await audit(ctx, member, "product.update", d.name, undefined, {
+      targetId: p._id,
+      targetName: d.name,
+      changes: diff({ ...p, trackSerial: p.trackSerial ?? false }, d, Object.keys(d).filter((k) => k !== "attrsText")),
+    });
   },
 });
 

@@ -1,19 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useConvexAuth, useMutation } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Check } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { BrandMark } from "@/components/brand";
 import { BusinessFields, EMPTY_PROFILE, type Profile } from "@/components/business-fields";
-import { Field, SubmitButton } from "@/components/common";
+import { Banner, Field, SubmitButton } from "@/components/common";
 import { FullLoader as FullLoaderInline } from "@/components/guard";
 import { LogoUpload } from "@/components/logo-upload";
 import { PresetGrid } from "@/components/preset-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MAX_BUSINESS_TYPES, PRESETS } from "@/convex/shared/presets";
+import { errorMessage } from "@/convex/shared/errors";
 import { run } from "@/lib/run";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ export default function OnboardingPage() {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const me = useSession();
   const create = useMutation(api.onboarding.createBusiness);
+  const closed = useQuery(api.platformSettings.get)?.signupsOpen === false;
   const [step, setStep] = useState(1);
   const [types, setTypes] = useState<string[]>([]);
   const [fullName, setFullName] = useState("");
@@ -56,6 +58,7 @@ export default function OnboardingPage() {
         <BrandMark />
         <span className="text-lg font-semibold">Xisaabi</span>
       </div>
+      {closed && <div className="mb-4"><Banner tone="warning">{errorMessage({ data: "SIGNUPS_CLOSED" })}</Banner></div>}
       <ol className="mb-4 flex items-center gap-3 text-sm">
         {["What you sell", "Shop profile", "Logo"].map((l, i) => (
           <li key={l} className="flex items-center gap-2">

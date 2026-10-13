@@ -270,8 +270,8 @@ describe("3. business users cannot reach platform functions", () => {
       features: [], isDefaultTrial: false, isActive: true, sortOrder: 1,
     };
     return [
-      ["platformTenants.list", (c) => c.query(api.platformTenants.list, {})],
-      ["platformTenants.get", (c) => c.query(api.platformTenants.get, { businessId: b })],
+      ["platformTenants.list", (c) => c.query(api.platformTenants.list, { now: Date.now() })],
+      ["platformTenants.get", (c) => c.query(api.platformTenants.get, { businessId: b, now: Date.now() })],
       ["platformTenants.suspend", (c) => c.mutation(api.platformTenants.suspend, { businessId: b, reason: "x" })],
       ["platformTenants.activate", (c) => c.mutation(api.platformTenants.activate, { businessId: b })],
       ["platformTenants.changePlan", (c) => c.mutation(api.platformTenants.changePlan, { businessId: b, planId: F.planId })],
@@ -292,8 +292,8 @@ describe("3. business users cannot reach platform functions", () => {
       ["platformStaff.checkCreate", (c) => c.query(internal.platformStaff.checkCreate, { username: "newadmin" })],
       ["platformStaff.insertMember", (c) =>
         c.mutation(internal.platformStaff.insertMember, { userId: F.loneUser, username: "newadmin", fullName: "x" })],
-      ["platformStats.overview", (c) => c.query(api.platformStats.overview, {})],
-      ["platformAudit.list", (c) => c.query(api.platformAudit.list, {})],
+      ["platformStats.overview", (c) => c.query(api.platformStats.overview, { now: Date.now() })],
+      ["platformAudit.list", (c) => c.query(api.platformActivity.list, { paginationOpts: { numItems: 5, cursor: null } })],
     ];
   };
 
@@ -332,9 +332,9 @@ describe("4. SUPER_ADMIN-only functions", () => {
     expect(await code(P.action(api.platformStaff.create, { fullName: "z", username: "zzz", password: "longenough1" }))).toBe("FORBIDDEN");
     // but day-to-day platform work is allowed
     expect(await code(P.query(api.platformPlans.list, {}))).toBe("OK");
-    expect(await code(P.query(api.platformTenants.list, {}))).toBe("OK");
+    expect(await code(P.query(api.platformTenants.list, { now: Date.now() }))).toBe("OK");
     expect(await code(P.mutation(api.platformTenants.extend, { businessId: F.A.businessId, days: 1 }))).toBe("OK");
-    expect(await code(P.query(api.platformStats.overview, {}))).toBe("OK");
+    expect(await code(P.query(api.platformStats.overview, { now: Date.now() }))).toBe("OK");
   });
   it("SUPER_ADMIN is allowed", async () => {
     const S = as(F.superAdmin);
@@ -349,7 +349,7 @@ describe("4. SUPER_ADMIN-only functions", () => {
   });
   it("a deactivated platform admin is locked out", async () => {
     await as(F.superAdmin).mutation(api.platformStaff.setActive, { memberId: F.padmin.memberId, isActive: false });
-    expect(await code(as(F.padmin).query(api.platformTenants.list, {}))).toBe("FORBIDDEN");
+    expect(await code(as(F.padmin).query(api.platformTenants.list, { now: Date.now() }))).toBe("FORBIDDEN");
   });
   it("platform users cannot use business functions", async () => {
     expect(await code(as(F.superAdmin).query(api.products.list, {}))).toBe("FORBIDDEN");
@@ -469,7 +469,7 @@ describe("7. suspended / expired businesses", () => {
     }
   });
   it("platform staff can still read a suspended tenant", async () => {
-    expect(await code(as(F.padmin).query(api.platformTenants.get, { businessId: F.C.businessId }))).toBe("OK");
+    expect(await code(as(F.padmin).query(api.platformTenants.get, { businessId: F.C.businessId, now: Date.now() }))).toBe("OK");
   });
 });
 
@@ -628,12 +628,12 @@ describe("10. unauthenticated", () => {
       "support.list": () => t.query(api.support.list, {}),
       "reports.summary": () => t.query(api.reports.summary, { from: 0, to: now }),
       "expenses.list": () => t.query(api.expenses.list, { from: 0, to: now }),
-      "platformTenants.list": () => t.query(api.platformTenants.list, {}),
+      "platformTenants.list": () => t.query(api.platformTenants.list, { now: Date.now() }),
       "platformPlans.create": () => t.mutation(api.platformPlans.create, { name: "p", description: "d", priceCents: 1, trialDays: 0, maxUsers: 0, maxProducts: 0, modules: [], features: [], isDefaultTrial: false, isActive: true, sortOrder: 1 }),
       "platformStaff.list": () => t.query(api.platformStaff.list, {}),
       "platformStaff.create": () => t.action(api.platformStaff.create, { fullName: "x", username: "newadm", password: "longenough1" }),
-      "platformStats.overview": () => t.query(api.platformStats.overview, {}),
-      "platformAudit.list": () => t.query(api.platformAudit.list, {}),
+      "platformStats.overview": () => t.query(api.platformStats.overview, { now: Date.now() }),
+      "platformAudit.list": () => t.query(api.platformActivity.list, { paginationOpts: { numItems: 5, cursor: null } }),
       "onboarding.generateUploadUrl": () => t.mutation(api.onboarding.generateUploadUrl, {}),
       "onboarding.createBusiness": () => t.mutation(api.onboarding.createBusiness, { fullName: "x", name: "x", businessType: "x", phone: "1", address: "a", city: "c", country: "SO", currency: "USD" }),
     };

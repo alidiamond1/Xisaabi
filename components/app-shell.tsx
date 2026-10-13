@@ -15,6 +15,7 @@ import { useSession } from "@/lib/session";
 import { canOpenApp } from "@/convex/shared/modules";
 import type { Feature } from "@/convex/shared/presets";
 import { BrandMark } from "@/components/brand";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export { BrandMark };
 
@@ -151,6 +152,7 @@ export function AppShell({ side, children }: { side: "business" | "platform"; ch
     apps = BUSINESS_APPS.filter((a) => canOpenApp(m.member.role as never, m.plan.modules, a.key) && (!m.lockReason || ["billing", "support", "settings"].includes(a.key)));
   } else if (me?.kind === "platform") {
     userName = me.member.fullName; userSub = me.member.role.replace("_", " ");
+    apps = PLATFORM_APPS.filter((a) => !a.superOnly || me.member.role === "SUPER_ADMIN");
   }
   const Brand = (
     <span className="flex min-w-0 items-center gap-2.5">
@@ -180,8 +182,20 @@ export function AppShell({ side, children }: { side: "business" | "platform"; ch
             <TabLinks appKey={current.key} base={current.href} className="flex gap-1 overflow-x-auto border-t px-3 py-1.5 md:hidden" />
           </Suspense>
         )}
+        {side === "platform" && current && (
+          <nav aria-label="Platform" className="flex gap-1 overflow-x-auto border-t px-3 py-1.5 sm:px-6">
+            {apps.map((a) => (
+              <Link key={a.key} href={a.href} aria-current={current.key === a.key ? "page" : undefined}
+                className={cn("inline-flex h-10 shrink-0 items-center rounded-lg px-3 text-sm font-medium transition-colors md:h-9",
+                  current.key === a.key ? "bg-brand-50 text-brand-800" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                {a.name}
+              </Link>
+            ))}
+          </nav>
+        )}
       </header>
       <main className="page-in mx-auto max-w-7xl px-3 py-5 sm:px-6">
+        {me?.kind === "business" && ["OWNER", "MANAGER"].includes(me.member.role) && <AnnouncementBanner />}
         {current && <Breadcrumbs home={home} current={current} pathname={pathname} />}
         <Suspense>{children}</Suspense>
       </main>

@@ -38,6 +38,8 @@ export const ERROR_MESSAGES = {
   UNIT_BARCODE_EXISTS: "Another product or unit already uses this barcode.",
   UNKNOWN_BUSINESS_TYPE: "Unknown business type.",
   SCAN_SESSION_INVALID: "This scanner link has ended. Pair your phone again.",
+  SIGNUPS_CLOSED: "New signups are closed right now. Please try again later.",
+  LAST_SUPER_ADMIN: "There must be at least one active super admin.",
   RATE_LIMITED: "Too many requests. Please slow down and try again shortly.",
 } as const;
 
