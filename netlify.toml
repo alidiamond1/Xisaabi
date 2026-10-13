@@ -1,0 +1,10 @@
+# Netlify: Next.js is auto-detected (OpenNext adapter). Only the frontend is deployed here;
+# the backend lives on Convex (`npx convex deploy`).
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # public URL, already shipped in the browser bundle — not a secret
+  NEXT_PUBLIC_CONVEX_URL = "https://marvelous-horse-738.convex.cloud"
