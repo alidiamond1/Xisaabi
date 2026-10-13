@@ -420,7 +420,7 @@ describe("lookups.remote", () => {
     expect(f).toHaveBeenCalledTimes(1);
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain(`/api/v2/product/${EAN}.json`);
-    expect((init.headers as Record<string, string>)["User-Agent"]).toMatch(/^Dukaan\//);
+    expect((init.headers as Record<string, string>)["User-Agent"]).toMatch(/^Xisaabi\//);
     expect((await a.action(api.lookups.remote, { code: EAN }))?.name).toBe("Choco Bar");
     expect(f).toHaveBeenCalledTimes(1);
     expect((await a.query(api.catalog.lookup, { code: EAN })).catalog?.name).toBe("Choco Bar");

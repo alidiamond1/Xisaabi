@@ -54,7 +54,7 @@ export default function OnboardingPage() {
     <div className="mx-auto max-w-3xl p-4 sm:py-10">
       <div className="mb-6 flex items-center gap-2">
         <BrandMark />
-        <span className="text-lg font-semibold">Dukaan</span>
+        <span className="text-lg font-semibold">Xisaabi</span>
       </div>
       <ol className="mb-4 flex items-center gap-3 text-sm">
         {["What you sell", "Shop profile", "Logo"].map((l, i) => (

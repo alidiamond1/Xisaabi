@@ -139,7 +139,7 @@ export function AppShell({ side, children }: { side: "business" | "platform"; ch
   const all: AppDef[] = side === "business" ? BUSINESS_APPS : PLATFORM_APPS;
   const current = all.find((a) => pathname === a.href || pathname.startsWith(a.href + "/"));
 
-  let brandName = "Dukaan Platform";
+  let brandName = "Xisaabi Platform";
   let logo: string | null = null;
   let userName = "";
   let userSub = "";

@@ -9,7 +9,7 @@ import { limiter } from "./lib/limiter";
 import { isInternal, normalizeGtin } from "./shared/barcode";
 
 const TIMEOUT_MS = 5000;
-const USER_AGENT = "Dukaan/1.0 (calinuurcabdulle11@gmail.com)"; // contact for Open Food Facts; change when a support address exists
+const USER_AGENT = "Xisaabi/1.0 (calinuurcabdulle11@gmail.com)"; // contact for Open Food Facts; change when a support address exists
 const HOSTS = [
   { host: "world.openfoodfacts.org", source: "OPEN_FOOD_FACTS" as const },
   { host: "world.openbeautyfacts.org", source: "OTHER" as const },

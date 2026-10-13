@@ -131,7 +131,7 @@ export function StocktakeView() {
 
   return (
     <>
-      <PageHeader title="Stocktake" desc="Count what is on the shelf, enter it, and Dukaan fixes the stock for you. Leave a row blank to skip it."
+      <PageHeader title="Stocktake" desc="Count what is on the shelf, enter it, and Xisaabi fixes the stock for you. Leave a row blank to skip it."
         actions={<><PrintButton label="Print count sheet" /><Button size="lg" disabled={entered.length === 0} onClick={apply}>Apply count{changed.length ? ` (${changed.length})` : ""}</Button></>} />
       {result && (
         <div className="mb-4 space-y-3">

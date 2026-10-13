@@ -1,4 +1,4 @@
-# Dukaan
+# Xisaabi
 
 Multi-tenant business suite for small shops (Odoo-style apps): POS (works offline), inventory, sales,
 customer credit, expiry alerts, expenses, reports, staff, settings, billing, support — plus a platform

@@ -91,7 +91,7 @@ export function Thread({ title, meta, actions, messages, closed, onSend, side }:
           return (
             <div key={m._id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
               <div className={cn("max-w-[85%] rounded-2xl px-3.5 py-2 text-sm", mine ? "bg-indigo-600 text-white" : "border bg-white")}>
-                <p className={cn("mb-0.5 text-xs", mine ? "text-indigo-200" : "text-muted-foreground")}>{m.authorName}{m.fromPlatform && side === "business" && " (Dukaan support)"} · {fmtDateTime(m.createdAt)}</p>
+                <p className={cn("mb-0.5 text-xs", mine ? "text-indigo-200" : "text-muted-foreground")}>{m.authorName}{m.fromPlatform && side === "business" && " (Xisaabi support)"} · {fmtDateTime(m.createdAt)}</p>
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
               </div>
             </div>

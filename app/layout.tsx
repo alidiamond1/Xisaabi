@@ -10,7 +10,7 @@ const display = Bricolage_Grotesque({ variable: "--f-display", subsets: ["latin"
 const body = Figtree({ variable: "--f-body", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Dukaan", template: "%s · Dukaan" },
+  title: { default: "Xisaabi", template: "%s · Xisaabi" },
   description: "Business management for small shops",
 };
 export const viewport: Viewport = { themeColor: "#0e7a6c", width: "device-width", initialScale: 1 };

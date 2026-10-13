@@ -61,7 +61,7 @@ export default function Landing() {
     <div className="overflow-x-clip">
       <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5"><BrandMark className="size-9" /><span className="font-display text-xl font-semibold tracking-tight">Dukaan</span></Link>
+          <Link href="/" className="flex items-center gap-2.5"><BrandMark className="size-9" /><span className="font-display text-xl font-semibold tracking-tight">Xisaabi</span></Link>
           <nav className="hidden gap-7 text-sm font-medium text-muted-foreground sm:flex">
             <a href="#modules" className="hover:text-foreground">Modules</a>
             <a href="#how" className="hover:text-foreground">How it works</a>
@@ -155,7 +155,7 @@ export default function Landing() {
       </section>
 
       <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        <p>Dukaan. Business software for small shops.</p>
+        <p>Xisaabi. Business software for small shops.</p>
         <p className="mt-1"><Link href="/login" className="hover:underline">Log in</Link> · <Link href="/signup" className="hover:underline">Sign up</Link></p>
       </footer>
     </div>
