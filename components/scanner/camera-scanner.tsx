@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { CameraOff, Check, Flashlight, FlashlightOff, Keyboard, Loader2, Lock, ScanLine, ShieldAlert } from "lucide-react";
+import { CameraOff, Check, SwitchCamera, Flashlight, FlashlightOff, Keyboard, Loader2, Lock, ScanLine, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ export type { ScanResult } from "./scan-utils";
 
 type Cam = "starting" | "scanning" | "denied" | "nocamera" | "insecure" | "error";
 const DEDUPE_MS = 1500;
+const CAM_KEY = "xisaabi-camera"; // the lens the user picked with "Switch camera"
+const camId = () => { try { return localStorage.getItem(CAM_KEY) ?? undefined; } catch { return undefined; } };
 
 const PROBLEMS: Record<Exclude<Cam, "starting" | "scanning">, { icon: typeof CameraOff; title: string; body: string }> = {
   denied: { icon: Lock, title: "Camera is blocked", body: "Allow the camera for this site in your browser settings, then tap Try again. You can also type the code below." },
@@ -34,6 +36,7 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
   const [flash, setFlash] = useState(false);
   const [manual, setManual] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [cams, setCams] = useState<string[]>([]); // back cameras, for the switch button
   const live = useRef({ onScan, continuous, paused });
   const last = useRef({ code: "", at: 0 });
   const done = useRef(false);
@@ -60,13 +63,27 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
     (async () => {
       setCam("starting");
       if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { setCam("insecure"); return; }
+      const open = (deviceId?: string) => navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }), width: { ideal: 1920 }, height: { ideal: 1080 } },
+      });
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
+        stream = await open(camId());
+        // Labels exist only after permission. Many phones (Samsung…) hand out the ultra-wide back lens,
+        // which cannot focus up close, so barcodes never read: list the back cameras and prefer the main one.
+        const cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+        const back = cams.filter((d) => !/front|user|facetime/i.test(d.label));
+        const list = back.length ? back : cams;
+        if (!stop) setCams(list.map((d) => d.deviceId));
+        const using = stream.getVideoTracks()[0]?.getSettings().deviceId;
+        const main = list.find((d) => /camera2 0|back camera$|rear camera$/i.test(d.label)) ?? list.find((d) => !/ultra|wide|0\.5|tele|depth|macro/i.test(d.label));
+        if (!camId() && main && using && main.deviceId !== using) {
+          stream.getTracks().forEach((t) => t.stop());
+          stream = await open(main.deviceId);
+        }
       } catch (e) {
         const n = (e as DOMException)?.name;
+        if (n === "OverconstrainedError" && camId()) { try { localStorage.removeItem(CAM_KEY); } catch {} if (!stop) setAttempt((x) => x + 1); return; }
         if (!stop) setCam(n === "NotAllowedError" || n === "SecurityError" ? "denied" : n === "NotFoundError" || n === "OverconstrainedError" || n === "DevicesNotFoundError" ? "nocamera" : "error");
         return;
       }
@@ -106,6 +123,13 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
     };
     // emit only touches refs and stable setters, so [attempt] is the only real dependency
   }, [attempt]);
+
+  function switchCamera() {
+    const cur = track.current?.getSettings().deviceId;
+    const next = cams[(cams.indexOf(cur ?? "") + 1) % cams.length];
+    try { localStorage.setItem(CAM_KEY, next); } catch {}
+    setAttempt((n) => n + 1);
+  }
 
   async function toggleTorch() {
     const next = !torch;
@@ -155,6 +179,11 @@ export function CameraScanner({ onScan, continuous = false, paused = false, clas
                 {cam === "starting" ? <><Loader2 className="size-3.5 animate-spin" />Starting camera</> : <><ScanLine className="size-3.5" />{continuous ? "Scanning, keep going" : "Point at the barcode"}</>}
               </span>
             </p>
+            {cams.length > 1 && (
+              <Button type="button" size="lg" variant="secondary" className="absolute left-3 top-3 bg-black/55 text-white hover:bg-black/70" onClick={switchCamera}>
+                <SwitchCamera /> Switch camera
+              </Button>
+            )}
             {torch !== null && (
               <Button type="button" size="icon-lg" variant="secondary" className="absolute right-3 top-3 bg-black/55 text-white hover:bg-black/70" aria-label={torch ? "Turn light off" : "Turn light on"} aria-pressed={torch} onClick={toggleTorch}>
                 {torch ? <FlashlightOff /> : <Flashlight />}
