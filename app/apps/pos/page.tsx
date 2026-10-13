@@ -489,6 +489,10 @@ function Tile({ p, n, wholesale, m, low, negOk, onTap }: {
       className={cn("relative flex min-h-28 flex-col justify-between rounded-xl border bg-card p-3 text-left shadow-card transition-[transform,box-shadow,border-color] duration-100 active:scale-[0.97]",
         blocked ? "border-danger/30 opacity-60" : n > 0 ? "border-brand-600 ring-1 ring-brand-600" : "hover:border-brand-300 hover:shadow-pop")}>
       {n > 0 && <span className="absolute -right-1.5 -top-1.5 grid min-w-6 place-items-center rounded-full bg-brand-600 px-1.5 text-xs font-bold text-white tabular-nums ring-2 ring-background">{fmtQty(n)}</span>}
+      {p.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- Convex storage URL; hidden when offline
+        <img src={p.imageUrl} alt="" loading="lazy" className="mb-2 h-20 w-full rounded-lg bg-muted object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+      )}
       <span className="line-clamp-2 text-[15px] font-medium leading-snug">{p.name}</span>
       <span className="mt-2 block">
       <span className="flex items-end justify-between gap-2">

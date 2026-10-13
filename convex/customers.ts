@@ -209,7 +209,7 @@ export const recordPayment = mutation({
     if (amount > c.balanceCents) fail("PAYMENT_EXCEEDS_BALANCE");
     const r = await post(ctx, member, c, "PAYMENT", -amount, {
       method: a.method, reference: optStr(a.reference, 100), note: optStr(a.note, 500),
-      shiftId: a.method === "CASH" ? (await openShiftOf(ctx, member._id))?._id : undefined,
+      shiftId: (await openShiftOf(ctx, member._id))?._id,
     });
     await audit(ctx, member, "customer.payment", `${c.fullName} ${amount} ${a.method}`);
     return r;

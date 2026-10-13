@@ -17,13 +17,14 @@ export type ZReport = FunctionReturnType<typeof api.shifts.report>;
 function Row({ a, b, bold }: { a: React.ReactNode; b: React.ReactNode; bold?: boolean }) {
   return <div className={`flex justify-between gap-2 ${bold ? "font-bold" : ""}`}><span>{a}</span><span className="tabular-nums">{b}</span></div>;
 }
-const Rule = () => <hr className="my-2 border-dashed border-black" />;
+const SHIFT_ORDER = ["EVC", "ZAAD", "EDAHAB", "CASH", "BANK"] as const; // mobile money first
+const Rule =() => <hr className="my-2 border-dashed border-black" />;
 
 /** 80mm Z-report. Pure view so it can be previewed and printed. */
 export function ZReportView({ z, businessName, currency }: { z: ZReport; businessName: string; currency: string }) {
   const m = (c: number) => formatCents(c, currency);
   const s = z.shift;
-  const methods = Object.entries(z.byMethod).filter(([, c]) => c !== 0);
+  const methods = [...SHIFT_ORDER, "CREDIT" as const].map((k) => [k, z.byMethod[k]] as const).filter(([, c]) => c !== 0);
   return (
     <div className="w-[80mm] bg-white p-3 font-mono text-[11px] leading-snug text-black">
       <div className="text-center">
@@ -37,28 +38,36 @@ export function ZReportView({ z, businessName, currency }: { z: ZReport; busines
       <Rule />
       <Row a={`Sales (${z.salesCount})`} b={m(z.salesTotalCents)} bold />
       {methods.map(([k, c]) => <Row key={k} a={`  ${METHOD_LABEL[k] ?? k}`} b={m(c)} />)}
-      {z.refundsCents > 0 && <Row a="Refunds" b={`-${m(z.refundsCents)}`} />}
+      {z.creditGivenCents > 0 && <Row a="Credit given (deen)" b={m(z.creditGivenCents)} />}
+      {SHIFT_ORDER.filter((k) => z.repaymentsByMethod[k] > 0).map((k) => <Row key={k} a={`Debt repaid, ${METHOD_LABEL[k]}`} b={m(z.repaymentsByMethod[k])} />)}
+      {SHIFT_ORDER.filter((k) => z.refundsByMethod[k] > 0).map((k) => <Row key={k} a={`Refund, ${METHOD_LABEL[k]}`} b={`-${m(z.refundsByMethod[k])}`} />)}
+      {z.expensesCents > 0 && <Row a="Expenses" b={`-${m(z.expensesCents)}`} />}
+      <Rule />
+      <div className="font-bold">EXPECTED BY METHOD</div>
+      {z.methods.map((r) => (
+        <div key={r.method} className="mb-1">
+          <Row a={METHOD_LABEL[r.method]} b={m(r.expected)} bold />
+          {r.counted !== null && <Row a="  Counted" b={m(r.counted)} />}
+          {r.difference !== null && <Row a="  Difference" b={`${r.difference > 0 ? "+" : ""}${m(r.difference)}`} bold />}
+        </div>
+      ))}
       <Rule />
       <div className="font-bold">CASH DRAWER</div>
       <Row a="Opening float" b={m(s.openingFloatCents)} />
-      <Row a="Cash sales (net of change)" b={m(z.cashSalesCents)} />
-      {z.cashRepaymentsCents > 0 && <Row a="Debt repayments" b={m(z.cashRepaymentsCents)} />}
       {z.cashInCents > 0 && <Row a="Cash in" b={m(z.cashInCents)} />}
       {z.cashOutCents > 0 && <Row a="Cash out" b={`-${m(z.cashOutCents)}`} />}
-      {z.cashRefundsCents > 0 && <Row a="Cash refunds" b={`-${m(z.cashRefundsCents)}`} />}
-      {z.cashExpensesCents > 0 && <Row a="Cash expenses" b={`-${m(z.cashExpensesCents)}`} />}
-      <Row a="Expected" b={m(z.expectedCashCents)} bold />
-      {z.countedCashCents !== null && (
-        <>
-          <Row a="Counted" b={m(z.countedCashCents)} bold />
-          <Row a="Difference" b={`${(z.differenceCents ?? 0) > 0 ? "+" : ""}${m(z.differenceCents ?? 0)}`} bold />
-        </>
-      )}
       {z.moves.length > 0 && (
         <>
           <Rule />
           <div className="font-bold">CASH IN / OUT</div>
           {z.moves.map((mv) => <Row key={mv._id} a={`${mv.type === "IN" ? "+" : "-"} ${mv.reason}`} b={m(mv.amountCents)} />)}
+        </>
+      )}
+      {z.itemsSold.length > 0 && (
+        <>
+          <Rule />
+          <div className="font-bold">ITEMS SOLD</div>
+          {z.itemsSold.map((i) => <Row key={`${i.name}|${i.unitName}`} a={`${i.qty} ${i.unitName ?? "x"} ${i.name}`} b={m(i.totalCents)} />)}
         </>
       )}
       {s.note && <><Rule /><div>Note: {s.note}</div></>}

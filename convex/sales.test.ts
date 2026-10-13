@@ -303,6 +303,31 @@ describe("shifts", () => {
     expect(await code(M.mutation(api.shifts.open, { openingFloatCents: 0 }))).toBe("OK");
   });
 
+  it("expectedByMethod: EVC sale + EVC repayment - EVC refund - EVC expense; counted EVC stores difference", async () => {
+    const M = as(F.managerA);
+    await M.mutation(api.shifts.open, { openingFloatCents: 100 });
+    const s1 = await M.mutation(api.sales.create, sale([line(F.p1, 2)], [{ method: "EVC", amountCents: 1000 }])); // +1000
+    await M.mutation(api.sales.create, sale([line(F.p1)], [{ method: "CREDIT", amountCents: 500 }], { customerId: F.retail })); // deen
+    await M.mutation(api.customers.recordPayment, { customerId: F.wholesale2, amountCents: 300, method: "EVC" }); // +300
+    await M.mutation(api.sales.refund, { saleId: s1.saleId, items: [{ productId: F.p1, qty: 1, restock: true }], method: "EVC", reason: "return" }); // -500
+    await M.mutation(api.expenses.create, { category: "Rent", amountCents: 50, paidVia: "EVC", payee: "", note: "", spentAt: Date.now() }); // -50
+    const cur = (await M.query(api.shifts.current, {}))!;
+    expect(cur.expectedByMethod).toEqual({ EVC: 750, ZAAD: 0, EDAHAB: 0, CASH: 100, BANK: 0 });
+    expect(cur).toMatchObject({ creditGivenCents: 500, expensesCents: 50, expectedCashCents: 100 });
+    expect(cur.repaymentsByMethod.EVC).toBe(300);
+    expect(cur.refundsByMethod.EVC).toBe(500);
+    expect(cur.itemsSold[0]).toMatchObject({ name: "p1", qty: 3, totalCents: 1500 });
+
+    expect(await code(M.mutation(api.shifts.close, { countedCashCents: 100, counted: [{ method: "CASH", amountCents: 1 }] }))).toBe("INVALID_INPUT");
+    const z = await M.mutation(api.shifts.close, { countedCashCents: 100, counted: [{ method: "EVC", amountCents: 700 }] });
+    expect(z.methods).toEqual([
+      { method: "EVC", expected: 750, counted: 700, difference: -50 },
+      { method: "CASH", expected: 100, counted: 100, difference: 0 },
+    ]);
+    const list = await as(F.ownerA).query(api.shifts.list, { from: 0, to: Date.now() + DAY });
+    expect(list[0]).toMatchObject({ totalDifferenceCents: -50, differenceCents: 0 });
+  });
+
   it("cashiers see only their own Z-report; other tenants see nothing", async () => {
     const id = await as(F.cashierA).mutation(api.shifts.open, { openingFloatCents: 0 });
     expect(await code(as(F.cashierA).query(api.shifts.report, { shiftId: id }))).toBe("OK");

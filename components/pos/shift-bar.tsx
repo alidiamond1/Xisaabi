@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, ChevronDown, Lock, Wallet } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Field, SubmitButton } from "@/components/common";
+import { METHOD_LABEL } from "@/components/receipt";
 import { ZReportDialog } from "@/components/pos/z-report";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,7 +17,10 @@ import { act, run } from "@/lib/run";
 import { fmtDateTime } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
-type Dlg = "open" | "in" | "out" | "close" | null;
+const SHIFT_METHODS = ["EVC", "ZAAD", "EDAHAB", "CASH", "BANK"] as const; // mobile money first
+const SHORT: Record<string, string> = { EVC: "EVC", ZAAD: "Zaad", EDAHAB: "eDahab", CASH: "Cash", BANK: "Bank" };
+type Cur = NonNullable<FunctionReturnType<typeof api.shifts.current>>;
+type Dlg ="open" | "in" | "out" | "close" | null;
 
 /** Shift strip under the POS header: open prompt, or time + expected cash with a menu. */
 export function ShiftBar({ currency }: { currency: string }) {
@@ -38,8 +43,11 @@ export function ShiftBar({ currency }: { currency: string }) {
             <span className="font-medium">Shift open</span> since {fmtDateTime(cur.shift.openedAt)}
             <span className="hidden sm:inline"> · {cur.salesCount} sale{cur.salesCount === 1 ? "" : "s"}</span>
           </span>
-          <span className="hidden text-xs text-muted-foreground sm:inline">Cash expected</span>
-          <span className="font-semibold tabular-nums">{formatCents(cur.expectedCashCents, currency)}</span>
+          <span className="hidden text-xs text-muted-foreground sm:inline">Expected</span>
+          <span className="max-w-[48%] truncate font-semibold tabular-nums">
+            {SHIFT_METHODS.filter((k) => cur.expectedByMethod[k] !== 0 || k === "CASH")
+              .map((k) => `${SHORT[k]} ${formatCents(cur.expectedByMethod[k], currency)}`).join(" · ")}
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 bg-card">Shift <ChevronDown /></Button>
@@ -55,7 +63,7 @@ export function ShiftBar({ currency }: { currency: string }) {
       )}
       <OpenDialog open={dlg === "open"} onClose={() => setDlg(null)} />
       <MoveDialog type={dlg === "in" ? "IN" : dlg === "out" ? "OUT" : null} onClose={() => setDlg(null)} />
-      <CloseDialog open={dlg === "close"} expected={cur?.expectedCashCents ?? 0} currency={currency} onClose={() => setDlg(null)}
+      <CloseDialog open={dlg === "close"} cur={cur} currency={currency} onClose={() => setDlg(null)}
         onClosed={(id) => { setDlg(null); setReport(id); }} />
       <ZReportDialog shiftId={report} onClose={() => setReport(null)} />
     </>
@@ -125,40 +133,83 @@ function MoveDialog({ type, onClose }: { type: "IN" | "OUT" | null; onClose: () 
   );
 }
 
-function CloseDialog({ open, expected, currency, onClose, onClosed }: {
-  open: boolean; expected: number; currency: string; onClose: () => void; onClosed: (id: Id<"shifts">) => void;
+function Line({ a, b, tone }: { a: React.ReactNode; b: React.ReactNode; tone?: string }) {
+  return <div className={cn("flex justify-between gap-3", tone)}><span className="min-w-0 truncate">{a}</span><span className="shrink-0 tabular-nums">{b}</span></div>;
+}
+
+function CloseDialog({ open, cur, currency, onClose, onClosed }: {
+  open: boolean; cur: Cur | null | undefined; currency: string; onClose: () => void; onClosed: (id: Id<"shifts">) => void;
 }) {
   const close = useMutation(api.shifts.close);
-  const [v, setV] = useState("");
+  const [vals, setVals] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const counted = parseToCents(v);
-  const diff = counted === null ? null : counted - expected;
+  const m = (c: number) => formatCents(c, currency);
+  if (!cur) return null;
+  const rows = SHIFT_METHODS.filter((k) => cur.expectedByMethod[k] !== 0 || k === "CASH");
+  const parsed = (k: string) => ((vals[k] ?? "").trim() === "" ? undefined : parseToCents(vals[k]));
+  const invalid = rows.some((k) => parsed(k) === null);
+  const cashBlank = parsed("CASH") === undefined && cur.expectedByMethod.CASH !== 0; // cash must be counted when money is expected
+  const sold = SHIFT_METHODS.filter((k) => cur.byMethod[k] !== 0);
+  const repaid = SHIFT_METHODS.filter((k) => cur.repaymentsByMethod[k] !== 0);
+  const refunded = SHIFT_METHODS.filter((k) => cur.refundsByMethod[k] !== 0);
   async function go() {
-    if (counted === null) return;
+    const counted = rows.filter((k) => k !== "CASH" && typeof parsed(k) === "number")
+      .map((k) => ({ method: k, amountCents: parsed(k) as number }));
     setBusy(true);
-    const z = await run(close({ countedCashCents: counted, note: note.trim() || undefined }), "Shift closed");
+    const z = await run(close({ countedCashCents: (parsed("CASH") as number | undefined) ?? 0, counted, note: note.trim() || undefined }), "Shift closed");
     setBusy(false);
-    if (z) { setV(""); setNote(""); onClosed(z.shift._id); }
+    if (z) { setVals({}); setNote(""); onClosed(z.shift._id); }
   }
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Close shift</DialogTitle><DialogDescription>Count the cash in the drawer and enter the total.</DialogDescription></DialogHeader>
-        <div className="flex items-baseline justify-between rounded-xl bg-muted/60 px-4 py-3">
-          <span className="text-sm text-muted-foreground">System expects</span>
-          <span className="font-display text-2xl font-semibold tabular-nums">{formatCents(expected, currency)}</span>
+        <DialogHeader><DialogTitle>Close shift</DialogTitle><DialogDescription>Check what you did, then enter what you have for each method.</DialogDescription></DialogHeader>
+        <div className="space-y-1 rounded-xl bg-muted/60 px-4 py-3 text-sm">
+          <Line a={`Sales (${cur.salesCount})`} b={m(cur.salesTotalCents)} tone="font-semibold" />
+          {sold.map((k) => <Line key={k} a={`  ${METHOD_LABEL[k]}`} b={m(cur.byMethod[k])} />)}
+          {cur.creditGivenCents > 0 && <Line a="  On credit (deen given)" b={m(cur.creditGivenCents)} tone="text-warning" />}
+          {repaid.map((k) => <Line key={k} a={`Debt repaid, ${METHOD_LABEL[k]}`} b={m(cur.repaymentsByMethod[k])} />)}
+          {refunded.map((k) => <Line key={k} a={`Refunds, ${METHOD_LABEL[k]}`} b={`-${m(cur.refundsByMethod[k])}`} />)}
+          {cur.expensesCents > 0 && <Line a="Expenses" b={`-${m(cur.expensesCents)}`} />}
+          {cur.cashInCents > 0 && <Line a="Cash in" b={m(cur.cashInCents)} />}
+          {cur.cashOutCents > 0 && <Line a="Cash out" b={`-${m(cur.cashOutCents)}`} />}
+          {cur.itemsSold.length > 0 && (
+            <details className="pt-1">
+              <summary className="cursor-pointer font-medium">Items sold ({cur.itemsSold.length})</summary>
+              <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                {cur.itemsSold.map((i) => <Line key={`${i.name}|${i.unitName}`} a={`${i.qty} ${i.unitName ?? "x"} ${i.name}`} b={m(i.totalCents)} />)}
+              </div>
+            </details>
+          )}
         </div>
-        <Field label="Cash counted"><Input inputMode="decimal" autoFocus placeholder="0.00" value={v} onChange={(e) => setV(e.target.value)} className="h-14 text-xl tabular-nums" /></Field>
-        {diff !== null && (
-          <p className={cn("text-center text-lg font-semibold tabular-nums", diff === 0 ? "text-success" : diff < 0 ? "text-danger" : "text-warning")}>
-            {diff === 0 ? "Perfect, no difference" : diff < 0 ? `Short by ${formatCents(-diff, currency)}` : `Over by ${formatCents(diff, currency)}`}
-          </p>
-        )}
+        {rows.map((k) => {
+          const exp = cur.expectedByMethod[k];
+          const c = parsed(k);
+          const diff = typeof c === "number" ? c - exp : null;
+          return (
+            <div key={k} className="space-y-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-medium">{METHOD_LABEL[k]}</span>
+                <span className="text-sm text-muted-foreground">Expected <b className="tabular-nums text-foreground">{m(exp)}</b></span>
+              </div>
+              <Field label={k === "CASH" ? "Cash counted in drawer" : `Amount in your ${METHOD_LABEL[k]} account received this shift`}
+                error={c === null ? "Enter a valid amount." : undefined}>
+                <Input inputMode="decimal" placeholder={k === "CASH" ? "0.00" : "Leave blank if not checked"} value={vals[k] ?? ""}
+                  onChange={(e) => setVals((p) => ({ ...p, [k]: e.target.value }))} className="h-12 text-lg tabular-nums" />
+              </Field>
+              {diff !== null && (
+                <p className={cn("text-sm font-semibold tabular-nums", diff === 0 ? "text-success" : diff < 0 ? "text-danger" : "text-warning")}>
+                  {diff === 0 ? "Matches" : diff < 0 ? `Short by ${m(-diff)}` : `Over by ${m(diff)}`}
+                </p>
+              )}
+            </div>
+          );
+        })}
         <Field label="Note (optional)"><Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} className="h-11" /></Field>
-        <DialogFooter>
+        <DialogFooter className="sticky -bottom-5 -mx-5 -mb-5 border-t bg-popover p-4">
           <Button variant="outline" size="lg" onClick={onClose}>Cancel</Button>
-          <SubmitButton size="lg" busy={busy} disabled={counted === null} onClick={go}>Close shift and print</SubmitButton>
+          <SubmitButton size="lg" busy={busy} disabled={invalid || cashBlank} onClick={go}>Close shift and print</SubmitButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

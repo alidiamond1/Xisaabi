@@ -488,6 +488,8 @@ export default defineSchema({
     closedAt: v.optional(v.number()),
     expectedCashCents: v.optional(v.number()), // computed at close
     countedCashCents: v.optional(v.number()),
+    expectedByMethod: v.optional(v.array(v.object({ method: paymentMethod, amountCents: v.number() }))), // every method, stored at close
+    countedByMethod: v.optional(v.array(v.object({ method: paymentMethod, amountCents: v.number() }))), // non-cash totals the cashier entered
     note: v.optional(v.string()),
   })
     .index("by_business_opened", ["businessId", "openedAt"])

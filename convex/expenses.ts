@@ -40,7 +40,7 @@ export const create = mutation({
     if (!business.settings.expenseCategories.includes(category) || a.paidVia === "CREDIT") fail("INVALID_INPUT");
     const amountCents = posInt(a.amountCents, 1e12);
     // cash paid from the drawer counts against the caller's open shift
-    const shift = a.paidVia === "CASH" ? await openShiftOf(ctx, member._id) : null;
+    const shift = await openShiftOf(ctx, member._id);
     const id = await ctx.db.insert("expenses", {
       businessId,
       category,
@@ -67,7 +67,7 @@ export const update = mutation({
     // an old category may have been removed from settings: keep it if unchanged
     if ((category !== e.category && !business.settings.expenseCategories.includes(category)) || a.paidVia === "CREDIT") fail("INVALID_INPUT");
     const amountCents = posInt(a.amountCents, 1e12);
-    const shiftId = a.paidVia === "CASH" ? (e.shiftId ?? (await openShiftOf(ctx, member._id))?._id) : undefined;
+    const shiftId = e.shiftId ?? (await openShiftOf(ctx, member._id))?._id;
     const next = {
       category,
       amountCents,

@@ -178,9 +178,13 @@ function ShiftsView() {
             { header: "Counted", className: "text-right", cell: (s) => s.countedCashCents === undefined ? <span className="text-muted-foreground">-</span> : <Money>{m(s.countedCashCents)}</Money> },
             {
               header: "Difference", className: "text-right",
-              cell: (s) => s.differenceCents === null ? <span className="text-muted-foreground">-</span> : s.differenceCents === 0
+              cell: (s) => !s.differences.length ? <span className="text-muted-foreground">-</span> : s.differences.every((d) => d.differenceCents === 0)
                 ? <Money tone="in" className="font-medium">Balanced</Money>
-                : <Money tone={s.differenceCents < 0 ? "out" : "in"} className="font-semibold">{s.differenceCents < 0 ? "Short " : "Over "}{m(Math.abs(s.differenceCents))}</Money>,
+                : <div>{s.differences.filter((d) => d.differenceCents !== 0).map((d) => (
+                    <Money key={d.method} tone={d.differenceCents < 0 ? "out" : "in"} className="block font-semibold">
+                      {METHOD_LABEL[d.method]} {d.differenceCents < 0 ? "short " : "over "}{m(Math.abs(d.differenceCents))}
+                    </Money>
+                  ))}</div>,
             },
           ]}
         />

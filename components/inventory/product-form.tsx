@@ -349,6 +349,24 @@ function Inner({ initial, again }: { initial?: ProductDetail; again: () => void 
   );
 }
 
+const MAX_PHOTO = 5_000_000; // backend limit in products.ts; shrink() normally lands far below 1 MB
+
+/** Phone photos are 3–8 MB: scale to ≤800px and re-encode as JPEG, lowering quality until it fits 1 MB. */
+async function shrink(file: File): Promise<Blob> {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * k);
+  c.height = Math.round(bmp.height * k);
+  c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+  let out: Blob = file;
+  for (const q of [0.82, 0.65, 0.5]) {
+    out = await new Promise<Blob>((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("encode"))), "image/jpeg", q));
+    if (out.size <= 1_000_000) break;
+  }
+  return out;
+}
+
 function ImageUpload({ preview, onUploaded, onRemove }: { preview: string; onUploaded: (id: string, url: string) => void; onRemove: () => void }) {
   const gen = useMutation(api.products.generateUploadUrl);
   const input = useRef<HTMLInputElement>(null);
@@ -356,14 +374,16 @@ function ImageUpload({ preview, onUploaded, onRemove }: { preview: string; onUpl
 
   async function pick(file: File | undefined) {
     if (!file) return;
-    if (!file.type.startsWith("image/") || file.size > 4_000_000) { toast.error("Choose an image under 4 MB."); return; }
+    if (!file.type.startsWith("image/")) { toast.error("Choose a photo."); return; }
     setBusy(true);
     try {
+      const img = await shrink(file);
+      if (img.size > MAX_PHOTO) { toast.error("Photo is too large. Try another one."); return; }
       const url = await gen({});
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": img.type }, body: img });
       if (!res.ok) throw new Error("upload");
       const { storageId } = (await res.json()) as { storageId: string };
-      onUploaded(storageId, URL.createObjectURL(file));
+      onUploaded(storageId, URL.createObjectURL(img));
     } catch {
       toast.error("Upload failed. Try again.");
     } finally {
@@ -385,7 +405,7 @@ function ImageUpload({ preview, onUploaded, onRemove }: { preview: string; onUpl
           </Button>
           {preview && <Button type="button" variant="ghost" size="lg" onClick={onRemove}>Remove</Button>}
         </div>
-        <p className="text-xs text-muted-foreground">PNG or JPG, up to 4 MB.</p>
+        <p className="text-xs text-muted-foreground">Any photo — it is made small so the POS loads fast on mobile data.</p>
         <input ref={input} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
       </div>
     </div>
