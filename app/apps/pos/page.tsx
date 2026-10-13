@@ -203,7 +203,8 @@ export default function PosPage() {
     const onClick = (e: MouseEvent) => {
       const el = e.target as HTMLElement;
       if (!el.closest("input, textarea, select, [role=dialog], [role=menu], [role=menuitem]")) {
-        setTimeout(() => { if (!document.querySelector("[role=dialog]")) scan.current?.focus(); }, 0);
+        // an open dropdown menu also counts: stealing focus from it closes it straight away
+        setTimeout(() => { if (!document.querySelector("[role=dialog], [role=menu]")) scan.current?.focus(); }, 0);
       }
     };
     document.addEventListener("click", onClick);
