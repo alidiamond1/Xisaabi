@@ -42,10 +42,10 @@ export function BusinessFields({ value, onChange }: { value: Profile; onChange: 
           <SelectContent>{currencies.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
         </Select>
       </Field>
-      <Field label="Phone"><Input type="tel" value={value.phone} onChange={set("phone")} required /></Field>
+      <Field label="Phone"><Input type="tel" value={value.phone} onChange={set("phone")} /></Field>
       <Field label="Email (optional)"><Input type="email" value={value.email} onChange={set("email")} /></Field>
-      <Field label="Address" className="sm:col-span-2"><Input value={value.address} onChange={set("address")} required /></Field>
-      <Field label="City"><Input value={value.city} onChange={set("city")} required /></Field>
+      <Field label="Address" className="sm:col-span-2"><Input value={value.address} onChange={set("address")} /></Field>
+      <Field label="City"><Input value={value.city} onChange={set("city")} /></Field>
       <Field label="Country"><Input value={value.country} onChange={set("country")} required /></Field>
     </div>
   );

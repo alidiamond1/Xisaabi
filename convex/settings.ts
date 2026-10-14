@@ -48,10 +48,10 @@ export const updateProfile = mutation({
     const next = {
       name: str(a.name),
       businessType: str(a.businessType),
-      phone: str(a.phone, 50),
+      phone: optStr(a.phone, 50) ?? "",
       email: optStr(a.email),
-      address: str(a.address),
-      city: str(a.city),
+      address: optStr(a.address) ?? "",
+      city: optStr(a.city) ?? "",
       country: str(a.country),
       currency: str(a.currency, 8).toUpperCase(),
       logoId,

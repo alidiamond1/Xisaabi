@@ -3,35 +3,20 @@ import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { DAY_MS } from "./shared/expiry";
 import { fail } from "./lib/access";
-import { limiter } from "./lib/limiter";
-import { checkLogo, optStr, str } from "./lib/validate";
+import { optStr, str } from "./lib/validate";
 import { MAX_BUSINESS_TYPES, PRESETS, mergePresets } from "./shared/presets";
-
-export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) fail("UNAUTHENTICATED");
-    // only for the logo step of signup; existing owners use settings.generateUploadUrl
-    const member = await ctx.db.query("members").withIndex("by_user", (q) => q.eq("userId", userId)).unique();
-    if (member) fail("ALREADY_ONBOARDED");
-    if (!(await limiter.limit(ctx, "uploadOnboarding", { key: userId })).ok) fail("RATE_LIMITED");
-    return await ctx.storage.generateUploadUrl();
-  },
-});
 
 export const createBusiness = mutation({
   args: {
-    fullName: v.string(),
+    fullName: v.optional(v.string()), // defaults to the username; editable later
     name: v.string(),
     businessType: v.string(),
-    phone: v.string(),
+    phone: v.optional(v.string()),
     email: v.optional(v.string()),
-    address: v.string(),
-    city: v.string(),
+    address: v.optional(v.string()),
+    city: v.optional(v.string()),
     country: v.string(),
     currency: v.string(),
-    logoId: v.optional(v.id("_storage")),
     businessTypes: v.optional(v.array(v.string())),
   },
   handler: async (ctx, a) => {
@@ -58,7 +43,6 @@ export const createBusiness = mutation({
     const plans = await ctx.db.query("plans").collect();
     const plan = plans.find((p) => p.isDefaultTrial);
     if (!plan) fail("NOT_FOUND");
-    if (a.logoId) await checkLogo(ctx, a.logoId);
 
     const types = [...new Set(a.businessTypes ?? [])];
     if (types.length > MAX_BUSINESS_TYPES || types.some((k) => !PRESETS.some((p) => p.key === k))) fail("UNKNOWN_BUSINESS_TYPE");
@@ -68,12 +52,11 @@ export const createBusiness = mutation({
     const now = Date.now();
     const businessId = await ctx.db.insert("businesses", {
       name: str(a.name),
-      logoId: a.logoId,
       businessType: str(a.businessType),
-      phone: str(a.phone, 50),
+      phone: optStr(a.phone, 50) ?? "",
       email: optStr(a.email),
-      address: str(a.address),
-      city: str(a.city),
+      address: optStr(a.address) ?? "",
+      city: optStr(a.city) ?? "",
       country: str(a.country),
       currency: str(a.currency, 8).toUpperCase(),
       ownerUserId: userId,
@@ -105,14 +88,14 @@ export const createBusiness = mutation({
       businessId,
       role: "OWNER",
       username,
-      fullName: str(a.fullName),
+      fullName: optStr(a.fullName, 100) ?? username,
       isActive: true,
       createdAt: now,
     });
     await ctx.db.insert("auditLog", {
       businessId,
       actorMemberId: memberId,
-      actorName: a.fullName.trim(),
+      actorName: optStr(a.fullName, 100) ?? username,
       action: "business.create",
       createdAt: now,
     });

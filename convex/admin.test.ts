@@ -346,6 +346,15 @@ describe("platform settings", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].changes?.map((c) => c.field)).toContain("signupsOpen");
   });
+  it("signup needs only a shop name: phone/address/city empty, owner name = username", async () => {
+    expect(await code(asUser(F.loneUser).mutation(api.onboarding.createBusiness, {
+      name: "Hodan Shop", businessType: "General shop", country: "Somalia", currency: "USD", email: "h@example.com",
+    }))).toBe("OK");
+    const biz = await t.run((ctx) => ctx.db.query("businesses").filter((q) => q.eq(q.field("name"), "Hodan Shop")).first());
+    expect(biz).toMatchObject({ phone: "", address: "", city: "", email: "h@example.com" });
+    const owner = await t.run((ctx) => ctx.db.query("members").withIndex("by_business", (q) => q.eq("businessId", biz!._id)).first());
+    expect(owner?.fullName).toBe(owner?.username);
+  });
 });
 
 describe("announcements", () => {

@@ -8,7 +8,6 @@ export const limiter = new RateLimiter(components.rateLimiter, {
   lookupDay: { kind: "fixed window", rate: 1000, period: 24 * 60 * MINUTE }, // key: business id
   statsRefresh: { kind: "fixed window", rate: 1, period: MINUTE }, // platform "Refresh now", global
   paymentRecord: { kind: "fixed window", rate: 1, period: MINUTE / 2 }, // key: identical payment — stops double-click double credit
-  uploadOnboarding: { kind: "fixed window", rate: 5, period: 60 * MINUTE }, // key: user id
   uploadUrl: { kind: "fixed window", rate: 30, period: 60 * MINUTE }, // key: member id (products + settings)
   supportCreate: { kind: "fixed window", rate: 10, period: 60 * MINUTE }, // key: member id
   supportReply: { kind: "fixed window", rate: 60, period: 60 * MINUTE }, // key: member id

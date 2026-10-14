@@ -14,11 +14,14 @@ import { errorMessage } from "@/convex/shared/errors";
 import { normalizeUsername } from "@/convex/shared/username";
 import { useSession } from "@/lib/session";
 
+export const SIGNUP_EMAIL = "xisabsax-signup-email";
+
 export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
   const { signIn } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
   const me = useSession();
   const router = useRouter();
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,6 +43,8 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
     if (signup && password.length < 8) return toast.error(errorMessage({ data: "PASSWORD_TOO_SHORT" }));
     setBusy(true);
     try {
+      // the email is saved on the shop at onboarding (login stays username + password)
+      if (signup) try { sessionStorage.setItem(SIGNUP_EMAIL, email.trim()); } catch { /* private mode */ }
       await signIn("password", { flow: mode, username: u, password });
     } catch (err) {
       // Auth errors often reach the client without ConvexError data; keep the message friendly.
@@ -64,6 +69,11 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
               {signup ? "Create your account, then set up your shop." : "Log in to manage your shop."}
             </p>
           </div>
+          {signup && (
+            <Field label="Email">
+              <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={200} />
+            </Field>
+          )}
           <Field label="Username" hint={signup ? "3 to 32 characters: letters, numbers, . _ -" : undefined}>
             <Input autoComplete="username" autoCapitalize="none" value={username} onChange={(e) => setUsername(e.target.value)} required />
           </Field>

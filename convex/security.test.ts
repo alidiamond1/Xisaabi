@@ -640,7 +640,6 @@ describe("10. unauthenticated", () => {
       "platformStaff.create": () => t.action(api.platformStaff.create, { fullName: "x", username: "newadm", password: "longenough1" }),
       "platformStats.overview": () => t.query(api.platformStats.overview, { now: Date.now() }),
       "platformAudit.list": () => t.query(api.platformActivity.list, { paginationOpts: { numItems: 5, cursor: null } }),
-      "onboarding.generateUploadUrl": () => t.mutation(api.onboarding.generateUploadUrl, {}),
       "onboarding.createBusiness": () => t.mutation(api.onboarding.createBusiness, { fullName: "x", name: "x", businessType: "x", phone: "1", address: "a", city: "c", country: "SO", currency: "USD" }),
     };
     for (const [name, p] of Object.entries(calls)) expect(await code(p()), name).toBe("UNAUTHENTICATED");
@@ -677,9 +676,7 @@ describe("11. onboarding", () => {
   it("cannot attach a logo that another business already uses (MIME check not testable: convex-test stores no contentType)", async () => {
     const png = await t.run((ctx) => ctx.storage.store(new Blob(["x"], { type: "image/png" })));
     await t.run((ctx) => ctx.db.patch(F.B.businessId, { logoId: png }));
-    const L = asUser(F.loneUser);
-    expect(await code(L.mutation(api.onboarding.createBusiness, { ...biz, logoId: png }))).toBe("INVALID_INPUT"); // B's logo
-    // settings.updateProfile has the same rules
+    // logos are only set from Settings (signup has no logo step)
     const p = { name: "x", businessType: "x", phone: "1", address: "a", city: "c", country: "SO", currency: "USD" };
     expect(await code(as(F.ownerA).mutation(api.settings.updateProfile, { ...p, logoId: png }))).toBe("INVALID_INPUT");
     // B's logo file survives all of that
@@ -702,11 +699,6 @@ describe("11. onboarding", () => {
     const O = as(F.ownerA);
     for (let i = 0; i < 30; i++) expect(await code(O.mutation(api.settings.generateUploadUrl, {}))).toBe("OK");
     expect(await code(O.mutation(api.settings.generateUploadUrl, {}))).toBe("RATE_LIMITED");
-  });
-  it("upload urls are only for users who still need onboarding (or owners via settings)", async () => {
-    expect(await code(asUser(F.loneUser).mutation(api.onboarding.generateUploadUrl, {}))).toBe("OK");
-    expect(await code(as(F.cashierA).mutation(api.onboarding.generateUploadUrl, {}))).toBe("ALREADY_ONBOARDED");
-    expect(await code(as(F.ownerA).mutation(api.settings.generateUploadUrl, {}))).toBe("OK");
   });
 });
 
