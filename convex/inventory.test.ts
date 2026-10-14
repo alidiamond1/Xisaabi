@@ -96,6 +96,17 @@ const sale = (id: Id<"products">, qty: number) =>
     return await stockOut(ctx, member, (await ctx.db.get(id))!, qty, "SALE", { allowNegative: false });
   });
 
+describe("products.create permissions", () => {
+  it("needs editPrice for price/cost and adjustStock for opening stock", async () => {
+    const U = as(F.noAdjustA);
+    const err = (p: Promise<unknown>) => p.then(() => "OK", (e: { data?: unknown }) => e.data);
+    expect(await err(U.mutation(api.products.create, pf))).toBe("NO_PERMISSION"); // price 150 / cost 100
+    expect(await err(U.mutation(api.products.create, { ...pf, costCents: 0, priceCents: 0, openingStock: 3 }))).toBe("NO_PERMISSION");
+    expect(await err(U.mutation(api.products.create, { ...pf, costCents: 0, priceCents: 0 }))).toBe("OK");
+    expect(await err(as(F.managerA).mutation(api.products.create, { ...pf, openingStock: 3 }))).toBe("OK");
+  });
+});
+
 describe("FEFO and expiry", () => {
   it("sells the earliest non-expired batch first and skips expired ones", async () => {
     const id = await mkProduct({ trackExpiry: true });

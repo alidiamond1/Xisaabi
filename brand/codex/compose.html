@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #777; display: flex; flex-wrap: wrap; gap: 40px; padding: 40px; width: 2400px; align-items: flex-start; }
+  .art { position: relative; overflow: hidden; flex: none; color: #fff; background-size: cover; background-position: center; }
+  .word { font: 800 1em/1 "Bricolage Grotesque"; letter-spacing: -0.035em; text-shadow: 0 6px 30px rgba(0,0,0,.45); }
+  .word b { color: #e8b23a; }
+  .center { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 34px; }
+  svg.logo { filter: drop-shadow(0 20px 50px rgba(0,0,0,.55)) drop-shadow(0 0 60px rgba(232,178,58,.25)); }
+  .shade-l { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(7,46,42,.92) 0%, rgba(7,46,42,.75) 38%, rgba(7,46,42,0) 62%); }
+  .shade-t { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,46,42,.92) 0%, rgba(7,46,42,.7) 32%, rgba(7,46,42,0) 55%); }
+  h1 { font: 800 1em/1 "Bricolage Grotesque"; letter-spacing: -0.035em; }
+  .hl { color: #e8b23a; }
+  .cta { display: inline-block; background: #e8b23a; color: #0a3d38; font: 800 30px "Bricolage Grotesque"; letter-spacing: -.02em; padding: 18px 32px; border-radius: 999px; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22a090"/><stop offset="1" stop-color="#0c4d47"/></linearGradient>
+  <symbol id="logo" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="url(#g)" stroke="#e8b23a" stroke-opacity=".35" stroke-width="1.5"/><path d="M30 28 L70 72" stroke="#fff" stroke-width="13" stroke-linecap="round"/><path d="M22 56 L38 72 L76 27" fill="none" stroke="#e8b23a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<!-- Teaser: logo standing on the podium, name only -->
+<section id="tsq" class="art" style="width:1080px;height:1080px;background-image:url(teaser-bg-square.png)">
+  <div class="center" style="top:290px"><svg class="logo" width="300" height="300"><use href="#logo"/></svg><div class="word" style="font-size:118px">Xisab<b>Sax</b></div></div>
+</section>
+<section id="tst" class="art" style="width:1080px;height:1920px;background-image:url(teaser-bg-story.png)">
+  <div class="center" style="top:640px"><svg class="logo" width="340" height="340"><use href="#logo"/></svg><div class="word" style="font-size:138px">Xisab<b>Sax</b></div></div>
+</section>
+
+<!-- Launch (for later, after the teaser week): photo + headline, no URL yet -->
+<section id="lsq" class="art" style="width:1080px;height:1080px;background-image:url(launch-shopkeeper-square.png)">
+  <div class="shade-l"></div>
+  <div style="position:absolute;left:64px;top:70px;width:520px">
+    <div style="display:flex;align-items:center;gap:14px"><svg width="58" height="58"><use href="#logo"/></svg><span class="word" style="font-size:42px">Xisab<b>Sax</b></span></div>
+    <h1 style="font-size:74px;margin-top:150px">Dukaankaaga ku maamul <span class="hl">telefoonkaaga.</span></h1>
+    <p style="font:500 26px/1.4 Figtree;color:rgba(255,255,255,.88);margin-top:24px">Iib, kayd, deyn, EVC · Zaad · eDahab. Xisaab sax ah.</p>
+    <div style="margin-top:44px"><span class="cta">Dhawaan · Coming soon</span></div>
+  </div>
+</section>
+<section id="lst" class="art" style="width:1080px;height:1920px;background-image:url(launch-shopkeeper-story.png)">
+  <div class="shade-t"></div>
+  <div style="position:absolute;left:0;right:0;top:110px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 70px">
+    <div style="display:flex;align-items:center;gap:18px"><svg width="76" height="76"><use href="#logo"/></svg><span class="word" style="font-size:58px">Xisab<b>Sax</b></span></div>
+    <h1 style="font-size:92px;margin-top:70px">Kombiyuutar uma baahnid. <span class="hl">Telefoonkaaga ayaa ku filan.</span></h1>
+    <div style="margin-top:46px"><span class="cta" style="font-size:36px;padding:22px 40px">Dhawaan · Coming soon</span></div>
+  </div>
+</section>
+</body></html>

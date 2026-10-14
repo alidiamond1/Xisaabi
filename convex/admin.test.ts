@@ -142,6 +142,10 @@ function platformCalls() {
       c.mutation(api.platformAnnouncements.remove, { announcementId: F.announcementId })],
     ["platformSupport.assign", false, (c) => c.mutation(api.platformSupport.assign, { ticketId: F.ticketId, memberId: null })],
     ["platformSupport.setPriority", false, (c) => c.mutation(api.platformSupport.setPriority, { ticketId: F.ticketId, priority: "HIGH" })],
+    ["platformTenants.changePlan", true, (c) => c.mutation(api.platformTenants.changePlan, { businessId: F.A.businessId, planId: F.plan2Id })],
+    ["platformTenants.extend", true, (c) => c.mutation(api.platformTenants.extend, { businessId: F.A.businessId, days: 5 })],
+    ["platformTenants.recordPayment", true, (c) =>
+      c.mutation(api.platformTenants.recordPayment, { businessId: F.A.businessId, planId: F.planId, amountCents: 500, months: 1, method: "EVC" })],
     ["platformStaff.setRole", true, (c) => c.mutation(api.platformStaff.setRole, { memberId: F.padmin.memberId, role: "SUPER_ADMIN" })],
     ["platformStaff.resetPassword", true, (c) =>
       c.action(api.platformStaff.resetPassword, { memberId: F.padmin.memberId, newPassword: "longenough1" })],
@@ -222,7 +226,7 @@ describe("change tracking", () => {
   });
 
   it("business.extend, changePlan, editProfile and notes are audited with changes", async () => {
-    const P = as(F.padmin);
+    const P = as(F.superAdmin);
     const b = F.A.businessId;
     await P.mutation(api.platformTenants.changePlan, { businessId: b, planId: F.plan2Id });
     await P.mutation(api.platformTenants.extend, { businessId: b, days: 10 });
@@ -487,7 +491,8 @@ describe("security", () => {
     const now = Date.now();
     await t.run(async (ctx) => {
       await ctx.db.insert("authSessions", { userId: F.cashierA.userId, expirationTime: now + DAY });
-      await ctx.db.insert("authRateLimits", { identifier: "cashier-a", lastAttemptTime: now, attemptsLeft: 0 });
+      const acc = await ctx.db.insert("authAccounts", { userId: F.cashierA.userId, provider: "password", providerAccountId: "cashier-a" });
+      await ctx.db.insert("authRateLimits", { identifier: acc, lastAttemptTime: now, attemptsLeft: 0 });
       await ctx.db.insert("authRateLimits", { identifier: "owner-a", lastAttemptTime: now, attemptsLeft: 7 });
       await ctx.db.insert("authRateLimits", { identifier: "old", lastAttemptTime: now - 2 * 3_600_000, attemptsLeft: 0 }); // regenerated
     });
@@ -495,7 +500,7 @@ describe("security", () => {
     const logins = await P.query(api.platformSecurity.recentLogins, { limit: 10 });
     expect(logins[0]).toMatchObject({ username: "cashier-a", role: "CASHIER", businessName: "A" });
     const locked = await P.query(api.platformSecurity.lockouts, { now });
-    expect(locked.map((l) => l.identifier)).toEqual(["cashier-a"]);
+    expect(locked.map((l) => l.identifier)).toEqual(["cashier-a"]); // resolved from the authAccounts id
     expect(locked[0]).toMatchObject({ role: "CASHIER" });
     expect(locked[0].unlocksAt).toBeGreaterThan(now);
   });

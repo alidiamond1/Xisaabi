@@ -115,7 +115,7 @@ async function build(t: T) {
           paymentMethods: ["CASH"], maxCashierDiscountPercent: 10, defaultCreditLimitCents: 0,
           expenseCategories: ["Rent"], discountPresets: [5], shareToCatalog: share,
         },
-        createdAt: now,
+        createdAt: now - 30 * DAY,
       });
       return { businessId, ownerUserId };
     };
@@ -132,9 +132,10 @@ async function build(t: T) {
     const A = await biz("A");
     const B = await biz("B");
     const C = await biz("C");
+    const D = await biz("D");
     const P = await biz("P", false);
     return {
-      A, B, C, P,
+      A, B, C, D, P,
       ownerA: await member("OWNER", "owner-a", A.businessId, A.ownerUserId),
       cashierA: await member("CASHIER", "cashier-a", A.businessId),
       ownerB: await member("OWNER", "owner-b", B.businessId, B.ownerUserId),
@@ -158,7 +159,7 @@ afterEach(() => {
 });
 
 describe("contribute", () => {
-  it("PENDING, then VERIFIED after a 2nd distinct business; same business twice does not double count", async () => {
+  it("PENDING, then VERIFIED only at the 3rd distinct business; same business twice does not double count", async () => {
     await contrib(F.A.businessId, "Fresh Milk");
     await contrib(F.A.businessId, "fresh   milk");
     let rows = await catalogRows();
@@ -166,8 +167,18 @@ describe("contribute", () => {
     expect(rows[0]).toMatchObject({ status: "PENDING", confirmCount: 1, source: "COMMUNITY" });
     await contrib(F.B.businessId, "FRESH MILK");
     rows = await catalogRows();
-    expect(rows[0]).toMatchObject({ status: "VERIFIED", confirmCount: 2 });
-    expect(await t.run((ctx) => ctx.db.query("catalogContributions").collect())).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ status: "PENDING", confirmCount: 2 });
+    await contrib(F.C.businessId, "Fresh Milk");
+    rows = await catalogRows();
+    expect(rows[0]).toMatchObject({ status: "VERIFIED", confirmCount: 3 });
+    expect(await t.run((ctx) => ctx.db.query("catalogContributions").collect())).toHaveLength(3);
+  });
+  it("contributions from shops younger than 7 days do not count", async () => {
+    await contrib(F.A.businessId, "Milk");
+    await t.run((ctx) => ctx.db.patch(F.B.businessId, { createdAt: Date.now() - DAY }));
+    await contrib(F.B.businessId, "Milk");
+    expect((await catalogRows())[0]).toMatchObject({ confirmCount: 1 });
+    expect(await t.run((ctx) => ctx.db.query("catalogContributions").collect())).toHaveLength(2); // still saved
   });
   it("most-confirmed name wins", async () => {
     await contrib(F.A.businessId, "Milk A");
@@ -190,6 +201,7 @@ describe("contribute", () => {
   it("normalizes UPC-A to one EAN-13 row", async () => {
     await contrib(F.A.businessId, "Cola", "036000291452");
     await contrib(F.B.businessId, "Cola", "0036000291452");
+    await contrib(F.C.businessId, "Cola", "036000291452");
     const rows = await catalogRows();
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("VERIFIED");
@@ -234,8 +246,9 @@ describe("lookup", () => {
 
     await contrib(F.B.businessId, "Shared Milk");
     await contrib(F.C.businessId, "Shared Milk");
+    await contrib(F.D.businessId, "Shared Milk");
     const hit = await a.query(api.catalog.lookup, { code: EAN });
-    expect(hit.catalog).toMatchObject({ name: "Shared Milk", confirmCount: 2, status: "VERIFIED", source: "COMMUNITY" });
+    expect(hit.catalog).toMatchObject({ name: "Shared Milk", confirmCount: 3, status: "VERIFIED", source: "COMMUNITY" });
     expect(hit.needsRemote).toBe(false);
     const json = JSON.stringify(hit);
     expect(json).not.toContain("businessId");
@@ -447,7 +460,7 @@ describe("lookups.remote", () => {
     expect(await a.action(api.lookups.remote, { code: "123" })).toBeNull();
     expect(f).not.toHaveBeenCalled();
     // 12/min global bucket (each lookup that misses everywhere = 3 fetches)
-    for (let i = 0; i < 20; i++) await a.action(api.lookups.remote, { code: gtinN(i) });
+    for (let i = 0; i < 20; i++) await as(i % 2 ? F.ownerB : F.ownerA).action(api.lookups.remote, { code: gtinN(i) }); // per-shop minute cap is 10
     expect(f.mock.calls.length).toBe(12 * 3);
   });
   it("store never overwrites a real row", async () => {

@@ -43,9 +43,12 @@ export const lockouts = query({
     for (const r of rows) {
       const left = Math.min(MAX_ATTEMPTS_PER_HOUR, r.attemptsLeft + (now - r.lastAttemptTime) * perMs);
       if (left >= 1) continue;
-      const m = await ctx.db.query("members").withIndex("by_username", (q) => q.eq("username", r.identifier)).first();
+      // identifier is the authAccounts _id; its providerAccountId is the username
+      const accId = ctx.db.normalizeId("authAccounts", r.identifier);
+      const username = accId ? (await ctx.db.get(accId))?.providerAccountId : undefined;
+      const m = username ? await ctx.db.query("members").withIndex("by_username", (q) => q.eq("username", username)).first() : null;
       out.push({
-        identifier: r.identifier,
+        identifier: username ?? r.identifier,
         memberId: m?._id ?? null,
         fullName: m?.fullName ?? null,
         role: m?.role ?? null,

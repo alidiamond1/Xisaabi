@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCents } from "@/convex/shared/money";
 import { fmtDateTime } from "@/lib/session";
 
-export type ZReport = FunctionReturnType<typeof api.shifts.report>;
+type Report = FunctionReturnType<typeof api.shifts.report>;
+export type ZReport = Extract<Report, { blind: false }>;
 
 function Row({ a, b, bold }: { a: React.ReactNode; b: React.ReactNode; bold?: boolean }) {
   return <div className={`flex justify-between gap-2 ${bold ? "font-bold" : ""}`}><span>{a}</span><span className="tabular-nums">{b}</span></div>;
@@ -84,7 +85,9 @@ export function ZReportDialog({ shiftId, onClose }: { shiftId: Id<"shifts"> | nu
     <Dialog open={!!shiftId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92dvh] max-w-sm overflow-y-auto">
         <DialogHeader><DialogTitle>Z-report</DialogTitle></DialogHeader>
-        {z ? (
+        {z?.blind ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Shift still open ({z.salesCount} sale{z.salesCount === 1 ? "" : "s"}). The full Z-report shows after you close it.</p>
+        ) : z ? (
           <>
             <div className="mx-auto overflow-hidden rounded-lg border"><ZReportView z={z} businessName={name} currency={cur} /></div>
             <Button size="lg" onClick={() => window.print()}><Printer /> Print</Button>

@@ -97,17 +97,19 @@ async function zReport(ctx: QueryCtx, shift: Doc<"shifts">) {
     const counted = method === "CASH" ? countedCashCents : (cnt.get(method) ?? null);
     return { method, expected, counted, difference: counted === null ? null : counted - expected };
   }).filter((r) => r.method === "CASH" || r.expected !== 0 || r.counted !== null);
-  return { shift, ...t, expectedCashCents, countedCashCents, differenceCents: countedCashCents === null ? null : countedCashCents - expectedCashCents, methods };
+  return { blind: false as const, shift, ...t, expectedCashCents, countedCashCents, differenceCents: countedCashCents === null ? null : countedCashCents - expectedCashCents, methods };
 }
 
 export const current = query({
   args: {},
   handler: async (ctx) => {
-    const { member } = await requireBusiness(ctx, "pos");
+    const { member, role } = await requireBusiness(ctx, "pos");
     const shift = await openShiftOf(ctx, member._id);
     if (!shift) return null;
+    // blind count: a cashier must not see what the drawer should hold until the shift is closed
+    if (role === "CASHIER") return { blind: true as const, shift, salesCount: (await totals(ctx, shift)).salesCount };
     const { refunds, moves, expenses, ...live } = await totals(ctx, shift);
-    return { shift, ...live };
+    return { blind: false as const, shift, ...live };
   },
 });
 
@@ -208,6 +210,7 @@ export const report = query({
     const { businessId, member, role } = await posOrSales(ctx);
     const shift = await getOwned(ctx, businessId, a.shiftId);
     if (role === "CASHIER" && shift.memberId !== member._id) fail("FORBIDDEN"); // cashiers see only their own Z-report
+    if (role === "CASHIER" && shift.status === "OPEN") return { blind: true as const, shift, salesCount: (await totals(ctx, shift)).salesCount };
     return await zReport(ctx, shift);
   },
 });

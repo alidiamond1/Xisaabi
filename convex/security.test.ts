@@ -1,10 +1,12 @@
 /// <reference types="vite/client" />
 // Tenant-isolation & role-boundary tests. Run: npm test
 // Auth is simulated: Convex Auth's getAuthUserId reads identity.subject = "<userId>|<sessionId>".
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { checkPassword } from "./auth";
 import schema from "./schema";
 import { MODULE_KEYS } from "./shared/modules";
 
@@ -24,7 +26,11 @@ async function code(p: Promise<unknown>): Promise<string> {
   }
 }
 
-const makeT = () => convexTest(schema, modules);
+const makeT = () => {
+  const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
+  return t;
+};
 type T = ReturnType<typeof makeT>;
 let t: T;
 let F: Awaited<ReturnType<typeof build>>;
@@ -333,7 +339,7 @@ describe("4. SUPER_ADMIN-only functions", () => {
     // but day-to-day platform work is allowed
     expect(await code(P.query(api.platformPlans.list, {}))).toBe("OK");
     expect(await code(P.query(api.platformTenants.list, { now: Date.now() }))).toBe("OK");
-    expect(await code(P.mutation(api.platformTenants.extend, { businessId: F.A.businessId, days: 1 }))).toBe("OK");
+    expect(await code(P.mutation(api.platformTenants.extend, { businessId: F.A.businessId, days: 1 }))).toBe("FORBIDDEN");
     expect(await code(P.query(api.platformStats.overview, { now: Date.now() }))).toBe("OK");
   });
   it("SUPER_ADMIN is allowed", async () => {
@@ -692,6 +698,11 @@ describe("11. onboarding", () => {
     expect(await code(O.mutation(api.settings.updateProfile, { ...p, logoId: l2 }))).toBe("OK");
     expect(await t.run((ctx) => ctx.storage.getUrl(l1))).toBeNull();
   });
+  it("upload urls are rate limited per member", async () => {
+    const O = as(F.ownerA);
+    for (let i = 0; i < 30; i++) expect(await code(O.mutation(api.settings.generateUploadUrl, {}))).toBe("OK");
+    expect(await code(O.mutation(api.settings.generateUploadUrl, {}))).toBe("RATE_LIMITED");
+  });
   it("upload urls are only for users who still need onboarding (or owners via settings)", async () => {
     expect(await code(asUser(F.loneUser).mutation(api.onboarding.generateUploadUrl, {}))).toBe("OK");
     expect(await code(as(F.cashierA).mutation(api.onboarding.generateUploadUrl, {}))).toBe("ALREADY_ONBOARDED");
@@ -751,4 +762,13 @@ it("refunding a partly-repaid credit sale leaves store credit, not a lost paymen
   await C.mutation(api.customers.recordPayment, { customerId: cid, amountCents: before + total, method: "CASH" });
   await as(F.ownerA).mutation(api.sales.refund, { saleId: r.saleId, items: [{ productId: F.dataA.productId, qty: 1, restock: true }], method: "CREDIT", reason: "returned" });
   expect((await t.run((ctx) => ctx.db.get(cid)))!.balanceCents).toBe(-total);
+});
+
+describe("auth password rules", () => {
+  it("caps length at 200 and refuses password == username on sign-up", () => {
+    expect(() => checkPassword("signIn", "x".repeat(201), "bob")).toThrow();
+    expect(() => checkPassword("signUp", "bob", "bob")).toThrow();
+    expect(() => checkPassword("signIn", "bob", "bob")).not.toThrow();
+    expect(() => checkPassword("signUp", "x".repeat(200), "bob")).not.toThrow();
+  });
 });

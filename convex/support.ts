@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getOwned, requireBusiness } from "./lib/access";
+import { fail, getOwned, requireBusiness } from "./lib/access";
+import { limiter } from "./lib/limiter";
 import { str } from "./lib/validate";
 
 const OPTS = { allowLocked: true };
@@ -53,6 +54,7 @@ export const create = mutation({
   },
   handler: async (ctx, a) => {
     const { member, businessId } = await requireBusiness(ctx, "support", OPTS);
+    if (!(await limiter.limit(ctx, "supportCreate", { key: member._id })).ok) fail("RATE_LIMITED");
     const subject = str(a.subject);
     const body = str(a.body, 5000);
     const now = Date.now();
@@ -85,6 +87,7 @@ export const reply = mutation({
   args: { ticketId: v.id("tickets"), body: v.string() },
   handler: async (ctx, a) => {
     const { member, businessId } = await requireBusiness(ctx, "support", OPTS);
+    if (!(await limiter.limit(ctx, "supportReply", { key: member._id })).ok) fail("RATE_LIMITED");
     const t = await getOwned(ctx, businessId, a.ticketId);
     const body = str(a.body, 5000);
     const now = Date.now();

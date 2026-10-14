@@ -168,7 +168,7 @@ export const activate = mutation({
 export const changePlan = mutation({
   args: { businessId: v.id("businesses"), planId: v.id("plans") },
   handler: async (ctx, a) => {
-    const me = await requirePlatform(ctx);
+    const me = await requirePlatform(ctx, ["SUPER_ADMIN"]);
     const b = await loadBusiness(ctx, a.businessId);
     const plan = await ctx.db.get(a.planId);
     if (!plan) fail("NOT_FOUND");
@@ -185,7 +185,7 @@ export const changePlan = mutation({
 export const extend = mutation({
   args: { businessId: v.id("businesses"), days: v.number() },
   handler: async (ctx, a) => {
-    const me = await requirePlatform(ctx);
+    const me = await requirePlatform(ctx, ["SUPER_ADMIN"]);
     const b = await loadBusiness(ctx, a.businessId);
     const days = posInt(a.days, 3650);
     const now = Date.now();
@@ -209,7 +209,7 @@ export const recordPayment = mutation({
     reference: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
-    const me = await requirePlatform(ctx);
+    const me = await requirePlatform(ctx, ["SUPER_ADMIN"]);
     const b = await loadBusiness(ctx, a.businessId);
     if (!(await limiter.limit(ctx, "paymentRecord", { key: `${b._id}:${a.planId}:${a.amountCents}:${a.months}:${a.method}` })).ok) fail("RATE_LIMITED");
     const plan = await ctx.db.get(a.planId);

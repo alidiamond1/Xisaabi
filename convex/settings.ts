@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { audit, diff, fail, requireBusiness } from "./lib/access";
+import { limiter } from "./lib/limiter";
 import { cents, checkLogo, optStr, str } from "./lib/validate";
 import { feature, paymentMethod } from "./schema";
 import { MAX_BUSINESS_TYPES, PRESETS, businessFeatures, mergePresets, type AttributeDef } from "./shared/presets";
@@ -21,7 +22,8 @@ export const get = query({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireBusiness(ctx, "settings", OPTS);
+    const { member } = await requireBusiness(ctx, "settings", OPTS);
+    if (!(await limiter.limit(ctx, "uploadUrl", { key: member._id })).ok) fail("RATE_LIMITED");
     return await ctx.storage.generateUploadUrl();
   },
 });

@@ -270,6 +270,23 @@ describe("refunds", () => {
 });
 
 describe("shifts", () => {
+  it("blind count: a cashier sees no expected amounts while open, everything after close; owner always does", async () => {
+    const C = as(F.cashierA);
+    await C.mutation(api.shifts.open, { openingFloatCents: 1000 });
+    await C.mutation(api.sales.create, sale([line(F.p1)], [cash(500)]));
+    const blind = (await C.query(api.shifts.current, {}))!;
+    expect(blind).toMatchObject({ blind: true, salesCount: 1 });
+    expect(Object.keys(blind).sort()).toEqual(["blind", "salesCount", "shift"]);
+    const rep = await C.query(api.shifts.report, { shiftId: blind.shift._id });
+    expect(Object.keys(rep).sort()).toEqual(["blind", "salesCount", "shift"]);
+    const z = await C.mutation(api.shifts.close, { countedCashCents: 1400 });
+    expect(z).toMatchObject({ blind: false, expectedCashCents: 1500, differenceCents: -100 });
+    expect(await C.query(api.shifts.report, { shiftId: z.shift._id })).toMatchObject({ expectedCashCents: 1500 });
+    // owner sees everything on a cashier's open shift
+    const O = as(F.ownerA);
+    await O.mutation(api.shifts.open, { openingFloatCents: 200 });
+    expect(await O.query(api.shifts.current, {})).toMatchObject({ blind: false, expectedCashCents: 200 });
+  });
   it("expected cash = float + cash sales - change + cash repayments + in - out - cash refunds - cash expenses", async () => {
     const M = as(F.managerA);
     await M.mutation(api.shifts.open, { openingFloatCents: 1000 });
@@ -287,6 +304,7 @@ describe("shifts", () => {
     await M.mutation(api.customers.recordPayment, { customerId: F.wholesale2, amountCents: 100, method: "EVC" }); // not cash
     const cur = (await M.query(api.shifts.current, {}))!;
     expect(cur).toMatchObject({ cashSalesCents: 500, cashRefundsCents: 500, cashInCents: 200, cashOutCents: 50, cashExpensesCents: 120, cashRepaymentsCents: 300, salesCount: 2, expectedCashCents: 1330 });
+    if (cur.blind) throw new Error("manager must not be blind");
     expect(cur.byMethod).toMatchObject({ CASH: 500, EVC: 500 });
 
     const z = await M.mutation(api.shifts.close, { countedCashCents: 1000, note: "short" });
@@ -312,6 +330,7 @@ describe("shifts", () => {
     await M.mutation(api.sales.refund, { saleId: s1.saleId, items: [{ productId: F.p1, qty: 1, restock: true }], method: "EVC", reason: "return" }); // -500
     await M.mutation(api.expenses.create, { category: "Rent", amountCents: 50, paidVia: "EVC", payee: "", note: "", spentAt: Date.now() }); // -50
     const cur = (await M.query(api.shifts.current, {}))!;
+    if (cur.blind) throw new Error("manager must not be blind");
     expect(cur.expectedByMethod).toEqual({ EVC: 750, ZAAD: 0, EDAHAB: 0, CASH: 100, BANK: 0 });
     expect(cur).toMatchObject({ creditGivenCents: 500, expensesCents: 50, expectedCashCents: 100 });
     expect(cur.repaymentsByMethod.EVC).toBe(300);

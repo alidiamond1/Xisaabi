@@ -41,13 +41,17 @@ export function ShiftBar({ currency }: { currency: string }) {
           <Wallet className="size-4 shrink-0 text-brand-600" />
           <span className="min-w-0 flex-1 truncate">
             <span className="font-medium">Shift open</span> since {fmtDateTime(cur.shift.openedAt)}
-            <span className="hidden sm:inline"> · {cur.salesCount} sale{cur.salesCount === 1 ? "" : "s"}</span>
+            <span className={cur.blind ? "" : "hidden sm:inline"}> · {cur.salesCount} sale{cur.salesCount === 1 ? "" : "s"}</span>
           </span>
-          <span className="hidden text-xs text-muted-foreground sm:inline">Expected</span>
-          <span className="max-w-[48%] truncate font-semibold tabular-nums">
-            {SHIFT_METHODS.filter((k) => cur.expectedByMethod[k] !== 0 || k === "CASH")
-              .map((k) => `${SHORT[k]} ${formatCents(cur.expectedByMethod[k], currency)}`).join(" · ")}
-          </span>
+          {!cur.blind && (
+            <>
+              <span className="hidden text-xs text-muted-foreground sm:inline">Expected</span>
+              <span className="max-w-[48%] truncate font-semibold tabular-nums">
+                {SHIFT_METHODS.filter((k) => cur.expectedByMethod[k] !== 0 || k === "CASH")
+                  .map((k) => `${SHORT[k]} ${formatCents(cur.expectedByMethod[k], currency)}`).join(" · ")}
+              </span>
+            </>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 bg-card">Shift <ChevronDown /></Button>
@@ -146,13 +150,14 @@ function CloseDialog({ open, cur, currency, onClose, onClosed }: {
   const [busy, setBusy] = useState(false);
   const m = (c: number) => formatCents(c, currency);
   if (!cur) return null;
-  const rows = SHIFT_METHODS.filter((k) => cur.expectedByMethod[k] !== 0 || k === "CASH");
+  const blind = cur.blind; // cashiers count without seeing the expected amounts
+  const rows = SHIFT_METHODS.filter((k) => blind || cur.expectedByMethod[k] !== 0 || k === "CASH");
   const parsed = (k: string) => ((vals[k] ?? "").trim() === "" ? undefined : parseToCents(vals[k]));
   const invalid = rows.some((k) => parsed(k) === null);
-  const cashBlank = parsed("CASH") === undefined && cur.expectedByMethod.CASH !== 0; // cash must be counted when money is expected
-  const sold = SHIFT_METHODS.filter((k) => cur.byMethod[k] !== 0);
-  const repaid = SHIFT_METHODS.filter((k) => cur.repaymentsByMethod[k] !== 0);
-  const refunded = SHIFT_METHODS.filter((k) => cur.refundsByMethod[k] !== 0);
+  const cashBlank = parsed("CASH") === undefined && (blind || cur.expectedByMethod.CASH !== 0); // cash must be counted when money is expected
+  const sold = blind ? [] : SHIFT_METHODS.filter((k) => cur.byMethod[k] !== 0);
+  const repaid = blind ? [] : SHIFT_METHODS.filter((k) => cur.repaymentsByMethod[k] !== 0);
+  const refunded = blind ? [] : SHIFT_METHODS.filter((k) => cur.refundsByMethod[k] !== 0);
   async function go() {
     const counted = rows.filter((k) => k !== "CASH" && typeof parsed(k) === "number")
       .map((k) => ({ method: k, amountCents: parsed(k) as number }));
@@ -165,6 +170,7 @@ function CloseDialog({ open, cur, currency, onClose, onClosed }: {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader><DialogTitle>Close shift</DialogTitle><DialogDescription>Check what you did, then enter what you have for each method.</DialogDescription></DialogHeader>
+        {cur.blind ? <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm">{cur.salesCount} sale{cur.salesCount === 1 ? "" : "s"} this shift. Count what you have; the expected amounts show in the Z-report after you close.</p> : (
         <div className="space-y-1 rounded-xl bg-muted/60 px-4 py-3 text-sm">
           <Line a={`Sales (${cur.salesCount})`} b={m(cur.salesTotalCents)} tone="font-semibold" />
           {sold.map((k) => <Line key={k} a={`  ${METHOD_LABEL[k]}`} b={m(cur.byMethod[k])} />)}
@@ -183,15 +189,16 @@ function CloseDialog({ open, cur, currency, onClose, onClosed }: {
             </details>
           )}
         </div>
+        )}
         {rows.map((k) => {
-          const exp = cur.expectedByMethod[k];
+          const exp = cur.blind ? null : cur.expectedByMethod[k];
           const c = parsed(k);
-          const diff = typeof c === "number" ? c - exp : null;
+          const diff = typeof c === "number" && exp !== null ? c - exp : null;
           return (
             <div key={k} className="space-y-1.5">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-medium">{METHOD_LABEL[k]}</span>
-                <span className="text-sm text-muted-foreground">Expected <b className="tabular-nums text-foreground">{m(exp)}</b></span>
+                {exp !== null && <span className="text-sm text-muted-foreground">Expected <b className="tabular-nums text-foreground">{m(exp)}</b></span>}
               </div>
               <Field label={k === "CASH" ? "Cash counted in drawer" : `Amount in your ${METHOD_LABEL[k]} account received this shift`}
                 error={c === null ? "Enter a valid amount." : undefined}>

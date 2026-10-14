@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { DAY_MS } from "./shared/expiry";
 import { fail } from "./lib/access";
+import { limiter } from "./lib/limiter";
 import { checkLogo, optStr, str } from "./lib/validate";
 import { MAX_BUSINESS_TYPES, PRESETS, mergePresets } from "./shared/presets";
 
@@ -14,6 +15,7 @@ export const generateUploadUrl = mutation({
     // only for the logo step of signup; existing owners use settings.generateUploadUrl
     const member = await ctx.db.query("members").withIndex("by_user", (q) => q.eq("userId", userId)).unique();
     if (member) fail("ALREADY_ONBOARDED");
+    if (!(await limiter.limit(ctx, "uploadOnboarding", { key: userId })).ok) fail("RATE_LIMITED");
     return await ctx.storage.generateUploadUrl();
   },
 });

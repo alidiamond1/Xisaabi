@@ -63,7 +63,7 @@ async function build(t: T) {
           { key: "form", label: "Form", type: "select" as const, options: ["Tablet", "Syrup"], searchable: false },
           { key: "mg", label: "Mg", type: "number" as const, searchable: false },
         ],
-        createdAt: now,
+        createdAt: now - 30 * DAY,
       });
       return { businessId, ownerUserId };
     };
@@ -230,7 +230,7 @@ describe("2. lookups.remote", () => {
     const f = offOk({ status: 0 });
     vi.stubGlobal("fetch", f);
     const a = as(F.ownerA);
-    for (let i = 0; i < 60; i++) expect(await code(a.action(api.lookups.remote, { code: gtinN(i) }))).toBe("OK");
+    for (let i = 0; i < 10; i++) expect(await code(a.action(api.lookups.remote, { code: gtinN(i) }))).toBe("OK");
     const calls = f.mock.calls.length;
     expect(await code(a.action(api.lookups.remote, { code: gtinN(99) }))).toBe("RATE_LIMITED");
     expect(f.mock.calls.length).toBe(calls);

@@ -184,9 +184,9 @@ function BillingTab({ d, onDialog }: { d: Detail; onDialog: (x: Dlg) => void }) 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => onDialog("payment")}><Banknote /> Record payment</Button>
-        <Button variant="outline" onClick={() => onDialog("plan")}><Repeat /> Change plan</Button>
-        <Button variant="outline" onClick={() => onDialog("extend")}><CalendarPlus /> Extend</Button>
+        {sup && <Button onClick={() => onDialog("payment")}><Banknote /> Record payment</Button>}
+        {sup && <Button variant="outline" onClick={() => onDialog("plan")}><Repeat /> Change plan</Button>}
+        {sup && <Button variant="outline" onClick={() => onDialog("extend")}><CalendarPlus /> Add days</Button>}
       </div>
       <Panel>
         <div className="border-b p-4 font-semibold">Payments</div>
@@ -338,10 +338,11 @@ function ExtendDialog({ open, onClose, id }: { open: boolean; onClose: () => voi
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Extend subscription</DialogTitle></DialogHeader>
-        <Field label="Days to add"><Input inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} /></Field>
+        <DialogHeader><DialogTitle>Add days</DialogTitle></DialogHeader>
+        <Field label="Days to add (trial or paid)"><Input inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} /></Field>
+        <div className="flex gap-2">{[7, 14, 30].map((d) => <Button key={d} type="button" variant="outline" size="sm" onClick={() => setDays(String(d))}>+{d} days</Button>)}</div>
         <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button>
-          <SubmitButton busy={busy} disabled={!Number.isInteger(n) || n <= 0} onClick={async () => { setBusy(true); const ok = await act(extend({ businessId: id, days: n }), "Subscription extended"); setBusy(false); if (ok) onClose(); }}>Extend</SubmitButton>
+          <SubmitButton busy={busy} disabled={!Number.isInteger(n) || n <= 0} onClick={async () => { setBusy(true); const ok = await act(extend({ businessId: id, days: n }), "Subscription extended"); setBusy(false); if (ok) onClose(); }}>Add days</SubmitButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

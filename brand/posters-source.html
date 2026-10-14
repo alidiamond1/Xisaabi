@@ -1,0 +1,153 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --t9:#0a3d38; --t8:#0c4d47; --t7:#0f5f57; --t6:#137a6f; --t5:#1f9284; --t3:#8fd3c7; --t1:#dff3ef; --gold:#e8b23a; --paper:#f8f7f3; --ink:#1d2321; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #777; font-family: Figtree, sans-serif; display: flex; flex-direction: column; gap: 40px; padding: 40px; align-items: flex-start; }
+  .art { position: relative; overflow: hidden; flex: none; }
+  .display { font-family: "Bricolage Grotesque"; letter-spacing: -0.035em; }
+
+  /* logo */
+  .mark { flex: none; }
+  .word { font: 800 1em/1 "Bricolage Grotesque"; letter-spacing: -0.03em; }
+  .word b { color: var(--gold); font-weight: 800; }
+
+  /* backgrounds */
+  .bg-dark { background: radial-gradient(120% 90% at 85% 15%, #1f9284 0%, #0f5f57 38%, #0a3d38 75%); color: #fff; }
+  .bg-dark::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.07) 1.5px, transparent 1.6px); background-size: 28px 28px; pointer-events: none; }
+
+  /* phone mockup */
+  .phone { width: 360px; height: 740px; border-radius: 52px; background: #0b0f0e; padding: 12px; box-shadow: 0 40px 80px rgba(0,0,0,.35), 0 0 0 2px rgba(255,255,255,.08) inset; position: relative; z-index: 1; }
+  .screen { width: 100%; height: 100%; border-radius: 41px; background: var(--paper); overflow: hidden; display: flex; flex-direction: column; color: var(--ink); }
+  .notch { position: absolute; top: 24px; left: 50%; translate: -50% 0; width: 96px; height: 26px; border-radius: 20px; background: #0b0f0e; z-index: 2; }
+  .s-top { height: 64px; flex: none; }
+  .s-head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 10px; }
+  .s-head .t { font: 700 17px "Bricolage Grotesque"; }
+  .pill { font: 700 11px Figtree; padding: 4px 9px; border-radius: 99px; background: #dcf3e6; color: #17703f; }
+  .shift { margin: 0 12px; border-radius: 12px; background: var(--t1); color: var(--t8); font: 600 11.5px Figtree; padding: 8px 10px; display: flex; justify-content: space-between; }
+  .shift b { color: var(--t9); }
+  .search { margin: 10px 12px; height: 38px; border-radius: 12px; border: 1px solid #e3e1db; background: #fff; display: flex; align-items: center; gap: 8px; padding: 0 12px; font: 500 12.5px Figtree; color: #8b8f8b; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 0 12px; }
+  .tile { background: #fff; border: 1px solid #ebe9e3; border-radius: 14px; padding: 9px; position: relative; }
+  .tile.on { border-color: var(--t6); box-shadow: 0 0 0 1px var(--t6); }
+  .ph { height: 54px; border-radius: 9px; margin-bottom: 7px; display: grid; place-items: center; font-size: 28px; }
+  .tile .n { font: 600 12.5px Figtree; }
+  .tile .p { font: 700 15px "Bricolage Grotesque"; color: var(--t6); margin-top: 3px; display: flex; justify-content: space-between; align-items: end; }
+  .tile .p small { font: 500 10px Figtree; color: #8b8f8b; }
+  .badge { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; border-radius: 99px; background: var(--t6); color: #fff; font: 700 11px Figtree; display: grid; place-items: center; border: 2px solid var(--paper); }
+  .paybar { margin-top: auto; padding: 12px; background: #fff; border-top: 1px solid #ebe9e3; }
+  .methods { display: flex; gap: 6px; margin-bottom: 10px; }
+  .methods span { flex: 1; text-align: center; font: 700 10.5px Figtree; padding: 7px 0; border-radius: 9px; border: 1px solid #e3e1db; color: #4b504d; }
+  .methods span.sel { background: var(--t9); color: #fff; border-color: var(--t9); }
+  .pay { height: 48px; border-radius: 14px; background: var(--t6); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font: 700 15px Figtree; }
+  .pay b { font: 700 19px "Bricolage Grotesque"; }
+
+  /* floating chips */
+  .chip { position: absolute; z-index: 3; background: #fff; color: var(--ink); border-radius: 18px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 18px 40px rgba(0,0,0,.25); font: 600 16px Figtree; }
+  .chip .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; flex: none; }
+  .chip small { display: block; font: 500 13px Figtree; color: #6b706c; }
+
+  .cta { display: inline-flex; align-items: center; gap: 12px; background: var(--gold); color: var(--t9); font: 800 30px "Bricolage Grotesque"; letter-spacing: -0.02em; padding: 20px 34px; border-radius: 999px; box-shadow: 0 12px 30px rgba(232,178,58,.35); }
+  .url { font: 600 24px Figtree; color: rgba(255,255,255,.8); }
+  .feat { display: flex; flex-direction: column; gap: 16px; }
+  .feat div { display: flex; align-items: center; gap: 14px; font: 600 26px Figtree; color: #fff; }
+  .tick { width: 36px; height: 36px; border-radius: 99px; background: rgba(232,178,58,.18); display: grid; place-items: center; flex: none; }
+  .hl { color: var(--gold); }
+</style></head><body>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f9284"/><stop offset="1" stop-color="#0a3d38"/></linearGradient>
+  <symbol id="logo" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="url(#g)"/><path d="M30 28 L70 72" stroke="#fff" stroke-width="13" stroke-linecap="round"/><path d="M22 56 L38 72 L76 27" fill="none" stroke="#e8b23a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="logo-flat" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#fff" fill-opacity=".1" stroke="#fff" stroke-opacity=".18" stroke-width="2"/><path d="M30 28 L70 72" stroke="#fff" stroke-width="13" stroke-linecap="round"/><path d="M22 56 L38 72 L76 27" fill="none" stroke="#e8b23a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="tk" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke="#e8b23a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<template id="phone-tpl">
+  <div class="phone"><div class="notch"></div><div class="screen">
+    <div class="s-top"></div>
+    <div class="s-head"><span class="t">Point of Sale</span><span class="pill">● Online</span></div>
+    <div class="shift"><span>Shift open · 14 sales</span><span>EVC <b>$86.40</b> · Cash <b>$42.10</b></span></div>
+    <div class="search">⌕ &nbsp;Search or scan a barcode</div>
+    <div class="grid">
+      <div class="tile on"><span class="badge">2</span><div class="ph" style="background:#f3ead7">🍚</div><div class="n">Bariis 1kg</div><div class="p">$1.20<small>53 kg</small></div></div>
+      <div class="tile"><div class="ph" style="background:#eef2f6">🧂</div><div class="n">Sonkor 1kg</div><div class="p">$1.50<small>29 kg</small></div></div>
+      <div class="tile on"><span class="badge">1</span><div class="ph" style="background:#fbf1d6">🫒</div><div class="n">Saliid 3L</div><div class="p">$4.50<small>12 pcs</small></div></div>
+      <div class="tile"><div class="ph" style="background:#e6f2fb">🥛</div><div class="n">Caano 1L</div><div class="p">$0.80<small>40 pcs</small></div></div>
+      <div class="tile"><div class="ph" style="background:#fde8e4">🥤</div><div class="n">Cola 330ml</div><div class="p">$0.60<small>58 pcs</small></div></div>
+      <div class="tile"><div class="ph" style="background:#e9f6ec">💊</div><div class="n">Panadol</div><div class="p">$1.00<small>8 box</small></div></div>
+    </div>
+    <div class="paybar">
+      <div class="methods"><span class="sel">EVC Plus</span><span>Zaad</span><span>eDahab</span><span>Cash</span></div>
+      <div class="pay"><span>Pay</span><b>$6.90</b></div>
+    </div>
+  </div></div>
+</template>
+
+<!-- 1. Facebook / Instagram square post -->
+<section id="post" class="art bg-dark" style="width:1080px;height:1080px">
+  <div style="position:absolute;left:72px;top:68px;display:flex;align-items:center;gap:16px;z-index:2">
+    <svg class="mark" width="64" height="64"><use href="#logo-flat"/></svg><span class="word" style="font-size:44px">Xisab<b>Sax</b></span>
+  </div>
+  <div style="position:absolute;left:72px;top:200px;width:560px;z-index:2">
+    <h1 class="display" style="font-size:76px;line-height:.98;font-weight:800">Dukaankaaga ku maamul <span class="hl">telefoonkaaga.</span></h1>
+    <p style="font:500 26px/1.4 Figtree;color:rgba(255,255,255,.82);margin-top:26px">Iibka, kaydka, deynta iyo lacagaha EVC · Zaad · eDahab. Hal meel, xisaab sax ah.</p>
+    <div class="feat" style="margin-top:38px">
+      <div><span class="tick"><svg width="22" height="22"><use href="#tk"/></svg></span>Barcode ku akhri kamarada</div>
+      <div><span class="tick"><svg width="22" height="22"><use href="#tk"/></svg></span>Shift kasta: lacag sax ah</div>
+      <div><span class="tick"><svg width="22" height="22"><use href="#tk"/></svg></span>Ka shaqeeya internet la'aan</div>
+    </div>
+  </div>
+  <div style="position:absolute;left:72px;bottom:70px;display:flex;align-items:center;gap:26px;z-index:2">
+    <span class="cta">Tijaabi bilaash · 14 maalmood</span>
+  </div>
+  <div class="slot" style="position:absolute;right:58px;top:150px;rotate:4deg"></div>
+  <div class="chip" style="right:330px;top:735px"><span class="ic" style="background:#dcf3e6">✅</span><div>EVC Plus<small>$6.90 la helay</small></div></div>
+</section>
+
+<!-- 2. TikTok / Reels / Story 9:16 -->
+<section id="story" class="art bg-dark" style="width:1080px;height:1920px">
+  <div style="position:absolute;left:0;right:0;top:110px;display:flex;justify-content:center;align-items:center;gap:20px;z-index:2">
+    <svg width="84" height="84"><use href="#logo-flat"/></svg><span class="word" style="font-size:60px">Xisab<b>Sax</b></span>
+  </div>
+  <h1 class="display" style="position:absolute;left:80px;right:80px;top:250px;text-align:center;font-size:80px;line-height:1.02;font-weight:800;z-index:2">Kombiyuutar uma baahnid.<br><span class="hl">Telefoonkaaga ayaa ku filan.</span></h1>
+  <div class="slot" style="position:absolute;left:50%;top:620px;translate:-50% 0;scale:1.25;transform-origin:top center"></div>
+  <div class="chip" style="left:70px;top:930px"><span class="ic" style="background:#fff4dc">📷</span><div>Barcode<small>kamarada ku akhri</small></div></div>
+  <div class="chip" style="right:60px;top:1210px"><span class="ic" style="background:#dcf3e6">✅</span><div>Shift-ka waa sax<small>EVC · Zaad · Cash</small></div></div>
+  <div class="chip" style="left:70px;top:1480px"><span class="ic" style="background:#fde8e4">📒</span><div>Deynta macaamiisha<small>+ / − hal taabasho</small></div></div>
+  <div style="position:absolute;left:0;right:0;bottom:120px;display:flex;flex-direction:column;align-items:center;gap:22px;z-index:2">
+    <span class="cta" style="font-size:38px;padding:24px 44px">Tijaabi bilaash · 14 maalmood</span>
+    <span class="url" style="font-size:30px">xisabsax.netlify.app</span>
+  </div>
+</section>
+
+<!-- 3. Facebook cover (desktop 820x312 @2x, safe area centred for mobile) -->
+<section id="cover" class="art bg-dark" style="width:1640px;height:624px">
+  <div style="position:absolute;left:300px;top:150px;width:760px;z-index:2">
+    <div style="display:flex;align-items:center;gap:16px"><svg width="58" height="58"><use href="#logo-flat"/></svg><span class="word" style="font-size:46px">Xisab<b>Sax</b></span></div>
+    <h1 class="display" style="font-size:64px;line-height:1;font-weight:800;margin-top:26px">Xisaab sax ah, <span class="hl">ganacsi fudud.</span></h1>
+    <p style="font:500 24px/1.4 Figtree;color:rgba(255,255,255,.82);margin-top:18px">POS · Kayd · Deyn · EVC, Zaad, eDahab · Telefoonkaaga kaliya</p>
+  </div>
+  <div class="slot" style="position:absolute;right:250px;top:70px;rotate:-6deg"></div>
+</section>
+
+<!-- 4. Profile photo (circle-safe) -->
+<section id="avatar" class="art" style="width:1024px;height:1024px">
+  <svg width="1024" height="1024" viewBox="0 0 100 100"><rect width="100" height="100" fill="url(#g)"/><g transform="translate(50 50) scale(.62) translate(-50 -50)"><path d="M30 28 L70 72" stroke="#fff" stroke-width="13" stroke-linecap="round"/><path d="M22 56 L38 72 L76 27" fill="none" stroke="#e8b23a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+</section>
+
+<!-- 5. Wordmark on light / dark -->
+<section id="word-light" class="art" style="width:1600px;height:440px;background:#f8f7f3;display:flex;align-items:center;justify-content:center;gap:40px">
+  <svg width="220" height="220"><use href="#logo"/></svg>
+  <div><div class="word" style="font-size:150px;color:#0a3d38">Xisab<b style="color:#137a6f">Sax</b></div><div style="font:600 36px Figtree;color:#6b6b66;margin-top:14px">Xisaab sax ah, ganacsi fudud</div></div>
+</section>
+<section id="word-dark" class="art bg-dark" style="width:1600px;height:440px;display:flex;align-items:center;justify-content:center;gap:40px">
+  <svg width="220" height="220" style="z-index:1"><use href="#logo-flat"/></svg>
+  <div style="z-index:1"><div class="word" style="font-size:150px">Xisab<b>Sax</b></div><div style="font:600 36px Figtree;color:rgba(255,255,255,.75);margin-top:14px">Xisaab sax ah, ganacsi fudud</div></div>
+</section>
+
+<script>
+  const tpl = document.getElementById("phone-tpl");
+  document.querySelectorAll(".slot").forEach((s) => s.appendChild(tpl.content.cloneNode(true)));
+</script>
+</body></html>

@@ -6,6 +6,8 @@ import { isInternal, normalizeGtin } from "../shared/barcode";
 import type { AppKey } from "../shared/modules";
 import { requireBusiness, type BusinessAccess } from "./access";
 
+export const VERIFY_SHOPS = 3; // distinct shops needed to verify a community entry
+const MIN_SHOP_AGE_MS = 7 * 86_400_000;
 export const NOT_FOUND_RETRY_MS = 30 * 86_400_000;
 
 /** Lowercase, collapse whitespace — used to compare names across shops. */
@@ -90,7 +92,13 @@ export async function contribute(
 
   // recompute: most-confirmed normalized name wins (ties: earliest group)
   // ponytail: reads at most 200 contributions per barcode; popular barcodes need an incremental counter
-  const all = await ctx.db.query("catalogContributions").withIndex("by_barcode", (q) => q.eq("barcode", barcode)).take(200);
+  const raw = await ctx.db.query("catalogContributions").withIndex("by_barcode", (q) => q.eq("barcode", barcode)).take(200);
+  // brand-new shops can save their own product but don't count toward the shared row (anti-sybil)
+  const all: typeof raw = [];
+  for (const r of raw) {
+    const b = r.businessId === businessId ? business : await ctx.db.get(r.businessId);
+    if (b && b.createdAt <= now - MIN_SHOP_AGE_MS) all.push(r);
+  }
   const groups = new Map<string, { count: number; latest: Doc<"catalogContributions"> }>();
   for (const r of all) {
     const k = normName(r.name);
@@ -104,7 +112,7 @@ export async function contribute(
   let best: { count: number; latest: Doc<"catalogContributions"> } | undefined;
   for (const g of groups.values()) if (!best || g.count > best.count) best = g;
   if (!best) return;
-  const status = best.count >= 2 ? ("VERIFIED" as const) : ("PENDING" as const);
+  const status = best.count >= VERIFY_SHOPS ? ("VERIFIED" as const) : ("PENDING" as const);
 
   const row = await ctx.db.query("catalog").withIndex("by_barcode", (q) => q.eq("barcode", barcode)).unique();
   // categoryHint is not stored per contribution: keep the row's, else this contributor's
@@ -120,8 +128,8 @@ export async function contribute(
     await ctx.db.patch(row._id, { confirmCount: best.count });
     return;
   }
-  // an Open Food Facts row is only replaced once the community agrees (>= 2 shops)
-  if (row.source === "OPEN_FOOD_FACTS" && row.status !== "NOT_FOUND" && best.count < 2) return;
+  // an Open Food Facts row is only replaced once the community agrees (>= VERIFY_SHOPS shops)
+  if (row.source === "OPEN_FOOD_FACTS" && row.status !== "NOT_FOUND" && best.count < VERIFY_SHOPS) return;
   await ctx.db.patch(row._id, {
     ...fields,
     status: row.status === "HIDDEN" ? "HIDDEN" : status,

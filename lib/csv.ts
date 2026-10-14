@@ -30,7 +30,9 @@ export type CsvCell = string | number | null | undefined;
 
 export function toCsv(rows: CsvCell[][]): string {
   const esc = (c: CsvCell) => {
-    const s = c === null || c === undefined ? "" : String(c);
+    let s = c === null || c === undefined ? "" : String(c);
+    // formula injection: neutralise text that Excel would run; real numbers (incl. negatives) stay as-is
+    if (typeof c === "string" && /^[=+\-@\t\r]/.test(c)) s = `'${s}`;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return rows.map((r) => r.map(esc).join(",")).join("\r\n");

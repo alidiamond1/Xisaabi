@@ -91,12 +91,12 @@ export default function PosPage() {
   const refreshPending = useCallback(() => { listOutbox().then((l) => setPending(l.length)); }, []);
   useEffect(() => { refreshPending(); return onOutboxChange(refreshPending); }, [refreshPending]);
   const flush = useCallback(async () => {
-    const results = await flushOutbox(create);
+    const results = await flushOutbox(create, business._id);
     for (const r of results) {
       if (r.ok === false) toast.error(`Sale of ${formatCents(r.sale.snapshot.totalCents, cur)} was rejected: ${errorMessage(r.error)}`);
     }
     return results;
-  }, [create, cur]);
+  }, [create, cur, business._id]);
   useEffect(() => {
     flush();
     const on = () => flush();
@@ -262,6 +262,7 @@ export default function PosPage() {
     const changeCents = Math.max(paid - t.totalCents, 0);
     const sale: OutboxSale = {
       v: 2,
+      businessId: business._id,
       clientSaleId: crypto.randomUUID(),
       items: lines.map((l, i) => ({ productId: l.productId, qty: l.qty, discountCents: t.rows[i].discount, unitName: l.unitName, serials: l.serials })),
       orderDiscountCents: t.orderDiscountCents,

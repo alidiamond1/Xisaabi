@@ -7,6 +7,7 @@ import { Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useSession, type BusinessSession, type PlatformSession } from "@/lib/session";
+import { clearOnLogout } from "@/lib/outbox";
 import { APP_ROLES, canOpenApp, type AppKey } from "@/convex/shared/modules";
 
 const BizCtx = createContext<BusinessSession | null>(null);
@@ -44,7 +45,7 @@ function LockedScreen({ me, owner }: { me: BusinessSession; owner: boolean }) {
           <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-red-100 text-red-600"><Lock className="size-6" /></div>
           <h1 className="text-xl font-semibold">Account locked</h1>
           <p className="mt-2 text-sm text-muted-foreground">Your account at {me.business.name} is locked. Please contact your manager.</p>
-          <Button className="mt-6" variant="ghost" onClick={() => signOut().then(() => router.replace("/login"))}>Log out</Button>
+          <Button className="mt-6" variant="ghost" onClick={() => signOut().then(clearOnLogout).then(() => router.replace("/login"))}>Log out</Button>
         </div>
       </div>
     );
@@ -63,7 +64,7 @@ function LockedScreen({ me, owner }: { me: BusinessSession; owner: boolean }) {
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {owner && <Button asChild><Link href="/apps/billing">Billing</Link></Button>}
           {owner && <Button asChild variant="outline"><Link href="/apps/support">Support</Link></Button>}
-          <Button variant="ghost" onClick={() => signOut().then(() => router.replace("/login"))}>Log out</Button>
+          <Button variant="ghost" onClick={() => signOut().then(clearOnLogout).then(() => router.replace("/login"))}>Log out</Button>
         </div>
       </div>
     </div>

@@ -8,3 +8,14 @@
   NODE_VERSION = "22"
   # public URL, already shipped in the browser bundle — not a secret
   NEXT_PUBLIC_CONVEX_URL = "https://marvelous-horse-738.convex.cloud"
+
+# Security headers. CSP is Report-Only until the console shows no violations; then rename to Content-Security-Policy.
+# Add 'unsafe-eval' to script-src only if a prod page breaks (Next does not need it in production).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.convex.cloud https://images.openfoodfacts.org https://images.openbeautyfacts.org https://images.openproductsfacts.org; connect-src 'self' https://marvelous-horse-738.convex.cloud wss://marvelous-horse-738.convex.cloud https://marvelous-horse-738.convex.site; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"

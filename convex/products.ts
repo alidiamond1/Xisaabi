@@ -3,6 +3,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { audit, diff, fail, getOwned, requireBusiness, requirePermission, type BusinessAccess } from "./lib/access";
+import { limiter } from "./lib/limiter";
 import { roundQty, stockIn } from "./lib/stock";
 import { cents, optStr, str, ts } from "./lib/validate";
 import { hasPermission } from "./shared/permissions";
@@ -411,6 +412,9 @@ export const create = mutation({
     const { businessId, member } = access;
     const d = await clean(ctx, businessId, a);
     const vs = variants ?? [];
+    // same gates as update / inventory.adjust: no price, cost or opening stock without the permission
+    if (d.priceCents || d.costCents || d.wholesalePriceCents || vs.some((x) => x.priceCents || x.costCents)) requirePermission(member, "editPrice");
+    if (openingStock || vs.some((x) => x.openingStock)) requirePermission(member, "adjustStock");
     if (vs.length > 100 || (vs.length && openingStock)) fail("INVALID_INPUT");
     if (d.trackSerial && vs.length) fail("INVALID_INPUT");
     if (!d.trackSerial && openingSerials?.length) fail("INVALID_INPUT");
@@ -516,7 +520,8 @@ export const archive = mutation({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireBusiness(ctx, "inventory");
+    const { member } = await requireBusiness(ctx, "inventory");
+    if (!(await limiter.limit(ctx, "uploadUrl", { key: member._id })).ok) fail("RATE_LIMITED");
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -560,6 +565,8 @@ export const importCsv = mutation({
     const access = await requireBusiness(ctx, "inventory");
     const { businessId, member } = access;
     if (a.rows.length > 500) fail("INVALID_INPUT");
+    if (a.rows.some((r) => r.priceCents || r.costCents || r.wholesalePriceCents)) requirePermission(member, "editPrice");
+    if (a.rows.some((r) => r.stock)) requirePermission(member, "adjustStock");
     const codes = await loadCodes(ctx, businessId);
     const cats = new Map(
       (await ctx.db.query("categories").withIndex("by_business", (q) => q.eq("businessId", businessId)).take(1000)).map((c) => [c.name.toLowerCase(), c._id]),

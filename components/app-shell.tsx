@@ -16,6 +16,7 @@ import { canOpenApp } from "@/convex/shared/modules";
 import type { Feature } from "@/convex/shared/presets";
 import { BrandMark } from "@/components/brand";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { clearOnLogout } from "@/lib/outbox";
 
 export { BrandMark };
 
@@ -61,7 +62,7 @@ function UserMenu({ name, sub, business, canSettings }: { name: string; sub: str
         {canSettings && <DropdownMenuItem asChild><Link href="/apps/settings"><Settings /> Settings</Link></DropdownMenuItem>}
         {canSettings && <DropdownMenuItem asChild><Link href="/apps/support"><LifeBuoy /> Help & support</Link></DropdownMenuItem>}
         {canSettings && <DropdownMenuSeparator />}
-        <DropdownMenuItem variant="destructive" onClick={() => signOut().then(() => router.replace("/login"))}><LogOut /> Log out</DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onClick={() => signOut().then(clearOnLogout).then(() => router.replace("/login"))}><LogOut /> Log out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
