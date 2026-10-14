@@ -56,7 +56,7 @@ export default function OnboardingPage() {
     <div className="mx-auto max-w-3xl p-4 sm:py-10">
       <div className="mb-6 flex items-center gap-2">
         <BrandMark />
-        <span className="text-lg font-semibold">Xisaabi</span>
+        <span className="text-lg font-semibold">XisabSax</span>
       </div>
       {closed && <div className="mb-4"><Banner tone="warning">{errorMessage({ data: "SIGNUPS_CLOSED" })}</Banner></div>}
       <ol className="mb-4 flex items-center gap-3 text-sm">

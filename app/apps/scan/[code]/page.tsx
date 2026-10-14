@@ -69,7 +69,7 @@ export default function PhoneScanPage() {
         <div className="rounded-xl border bg-card shadow-card">
           <EmptyState icon={TriangleAlert} title={info === null ? "This scanner link is not valid" : "This scanner link has ended"}
             desc={info === null ? "It may belong to another shop, or the code was typed wrong. Open the QR on your computer again." : "Pair again: tap Use phone as scanner on your computer and scan the new QR."}
-            action={<Button asChild size="lg" variant="outline"><Link href="/apps">Back to Xisaabi</Link></Button>} />
+            action={<Button asChild size="lg" variant="outline"><Link href="/apps">Back to XisabSax</Link></Button>} />
         </div>
       ) : (
         <>

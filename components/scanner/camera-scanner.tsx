@@ -17,7 +17,7 @@ const camId = () => { try { return localStorage.getItem(CAM_KEY) ?? undefined; }
 const PROBLEMS: Record<Exclude<Cam, "starting" | "scanning">, { icon: typeof CameraOff; title: string; body: string }> = {
   denied: { icon: Lock, title: "Camera is blocked", body: "Allow the camera for this site in your browser settings, then tap Try again. You can also type the code below." },
   nocamera: { icon: CameraOff, title: "No camera found", body: "This device has no usable camera. Type the code below or use a USB scanner." },
-  insecure: { icon: ShieldAlert, title: "Camera needs a secure page", body: "Open the HTTPS address of Xisaabi (https://...) to use the camera. Typing the code below always works." },
+  insecure: { icon: ShieldAlert, title: "Camera needs a secure page", body: "Open the HTTPS address of XisabSax (https://...) to use the camera. Typing the code below always works." },
   error: { icon: CameraOff, title: "Could not start the scanner", body: "Check your connection and tap Try again, or type the code below." },
 };
 

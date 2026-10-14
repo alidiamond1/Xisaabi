@@ -54,7 +54,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2">
           <BrandMark />
-          <span className="font-display text-xl font-semibold tracking-tight">Xisaabi</span>
+          <span className="font-display text-xl font-semibold tracking-tight">XisabSax</span>
         </Link>
         <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-card p-6 shadow-pop">
           {signup && closed && <Banner tone="warning">{errorMessage({ data: "SIGNUPS_CLOSED" })}</Banner>}
@@ -81,7 +81,7 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
           </SubmitButton>
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          {signup ? "Already have an account?" : "New to Xisaabi?"}{" "}
+          {signup ? "Already have an account?" : "New to XisabSax?"}{" "}
           <Button asChild variant="link" className="h-auto p-0">
             <Link href={signup ? "/login" : "/signup"}>{signup ? "Log in" : "Start free trial"}</Link>
           </Button>

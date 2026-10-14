@@ -29,7 +29,7 @@ export default function PlatformStaffPage() {
   if (!sup) return null;
   return (
     <>
-      <PageHeader title="Platform staff" desc="People who can administer Xisaabi." actions={<Button onClick={() => setAdding(true)}><Plus /> Add admin</Button>} />
+      <PageHeader title="Platform staff" desc="People who can administer XisabSax." actions={<Button onClick={() => setAdding(true)}><Plus /> Add admin</Button>} />
       <Panel>
         <DataTable
           rows={rows}
