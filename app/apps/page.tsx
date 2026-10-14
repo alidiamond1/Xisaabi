@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
-import { AlertTriangle, ArrowRight, Clock, PackageMinus, Receipt, ShoppingCart, Truck, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock, Store, PackageMinus, Receipt, ShoppingCart, Truck, Users } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useBiz } from "@/components/guard";
 import { Banner, Stat } from "@/components/common";
@@ -43,6 +43,8 @@ export default function Launcher() {
   const trial = me.business.subscriptionStatus === "TRIAL";
   const endingSoon = !me.lockReason && daysLeft <= 7;
   const hour = new Date().getHours();
+  // signup only asks for the shop name: nudge the owner to finish the profile (shown on receipts)
+  const missing = [!me.business.logoId && "logo", !me.business.phone && "phone", !me.business.address && "address", !me.business.city && "city"].filter(Boolean);
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
@@ -61,6 +63,12 @@ export default function Launcher() {
         <Banner tone="danger" icon={AlertTriangle}>
           {me.lockReason === "BUSINESS_SUSPENDED" ? "This business is suspended." : "Your subscription has expired."}{" "}
           Open <Link className="font-semibold underline" href="/apps/billing">Billing</Link> or <Link className="font-semibold underline" href="/apps/support">Support</Link>.
+        </Banner>
+      )}
+      {role === "OWNER" && missing.length > 0 && (
+        <Banner tone="warning" icon={Store}>
+          Finish setting up your shop: add your {missing.join(", ").replace(/, ([^,]*)$/, " and $1")}. They appear on your receipts.{" "}
+          <Link className="font-semibold underline" href="/apps/settings">Complete profile</Link>
         </Banner>
       )}
       {!me.lockReason && (trial || endingSoon) && role === "OWNER" && (
