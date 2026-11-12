@@ -23,7 +23,7 @@ export type RefundableSale = {
   totalCents: number;
   items: {
     productId: Id<"products">; name: string; qty: number; priceCents: number; discountCents: number; refundedQty: number;
-    unitName?: string; serials?: string[];
+    unitName?: string; baseUnit?: string; serials?: string[];
   }[];
 };
 
@@ -102,11 +102,11 @@ export function RefundForm({ sale, methods, currency, onDone }: {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{it.name}{it.unitName && <span className="ml-1.5 rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-800">{it.unitName}</span>}</p>
                 <p className="text-xs tabular-nums text-muted-foreground">
-                  Sold {fmtQty(it.qty)}{it.unitName ? ` ${it.unitName}` : ""} x {formatCents(it.priceCents, currency)}{it.refundedQty > 0 && ` · already returned ${fmtQty(it.refundedQty)}`}
+                  Sold {fmtQty(it.qty)}{it.unitName || it.baseUnit ? ` ${it.unitName ?? it.baseUnit}` : ""} x {formatCents(it.priceCents, currency)}{it.refundedQty > 0 && ` · already returned ${fmtQty(it.refundedQty)}`}
                 </p>
               </div>
               {left <= 0 ? <span className="text-xs text-muted-foreground">Fully returned</span> : !it.serials?.length && (
-                <Input inputMode="decimal" aria-label={`Quantity to return, ${it.name}`} placeholder="0" value={qty[k] ?? ""} className="h-11 w-20 text-right tabular-nums"
+                <Input inputMode="decimal" aria-label={`Quantity to return, ${it.name}${it.unitName || it.baseUnit ? ` (${it.unitName ?? it.baseUnit})` : ""}`} placeholder="0" value={qty[k] ?? ""} className="h-11 w-20 text-right tabular-nums"
                   onChange={(e) => setQty((s) => ({ ...s, [k]: e.target.value }))} />
               )}
             </div>

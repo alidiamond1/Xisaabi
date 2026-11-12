@@ -23,11 +23,11 @@ export function UnitSheet({ item, wholesale, m, onPick, onClose }: {
       <SheetContent side="bottom" className="mx-auto max-w-lg gap-0 rounded-t-2xl p-0">
         <SheetHeader className="border-b">
           <SheetTitle className="font-display text-lg">{item?.name}</SheetTitle>
-          <SheetDescription>Sell it by:</SheetDescription>
+          <SheetDescription>Choose loose {item?.unit} or a full pack. Stock is counted in {item?.unit}.</SheetDescription>
         </SheetHeader>
         {item && (
           <ul className="max-h-[60dvh] space-y-2 overflow-y-auto p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <Choice label={item.unit} sub={item.allowDecimal ? "enter the amount next" : "one at a time"} price={m(basePrice)} onClick={() => onPick(null)} />
+            <Choice label={`Loose ${item.unit}`} sub={`${item.allowDecimal ? "Enter the weighed/poured amount" : "One at a time"}${item.type === "STOCKABLE" ? ` · ${fmtQty(item.stock)} ${item.unit} on hand` : ""}`} price={m(basePrice)} onClick={() => onPick(null)} />
             {item.units.map((u) => (
               <Choice key={u.name} label={u.name} sub={`${fmtQty(u.factor)} ${item.unit}`} price={m(packCents(item, u, wholesale))} onClick={() => onPick(u)} />
             ))}

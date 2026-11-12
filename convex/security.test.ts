@@ -471,7 +471,8 @@ describe("7. suspended / expired businesses", () => {
       expect(await code(O.query(api.support.list, {}))).toBe("OK");
       expect(await code(O.query(api.settings.get, {}))).toBe("OK");
       expect(await code(O.query(api.billing.current, {}))).toBe("OK");
-      expect(await code(O.mutation(api.billing.requestPlan, { planId: F.planId }))).toBe("OK");
+      const paidId = await t.run(async (ctx) => { const p = (await ctx.db.get(F.planId))!; const { _id, _creationTime, ...rest } = p; return ctx.db.insert("plans", { ...rest, name: "Paid", priceCents: 1000, isDefaultTrial: false }); });
+      expect(await code(O.mutation(api.billing.requestPlan, { planId: paidId }))).toBe("OK");
     }
   });
   it("platform staff can still read a suspended tenant", async () => {

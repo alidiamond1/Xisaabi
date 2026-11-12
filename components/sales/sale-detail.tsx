@@ -63,9 +63,10 @@ export function SaleDetail({ saleId, onClose }: { saleId: Id<"sales"> | null; on
                       <div className="min-w-0">
                         <p className="font-medium">{i.name}{i.unitName && <span className="ml-1.5 rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-800">{i.unitName}</span>}</p>
                         <p className="text-xs tabular-nums text-muted-foreground">
-                          {fmtQty(i.qty)}{i.unitName ? ` ${i.unitName}` : ""} x {m(i.priceCents)}{i.discountCents > 0 && ` · discount -${m(i.discountCents)}`}
+                          {fmtQty(i.qty)}{i.unitName || i.baseUnit ? ` ${i.unitName ?? i.baseUnit}` : ""} x {m(i.priceCents)}{i.discountCents > 0 && ` · discount -${m(i.discountCents)}`}
                           {i.refundedQty > 0 && <span className="text-danger"> · {fmtQty(i.refundedQty)} returned</span>}
                         </p>
+                        {i.baseUnit && i.stockBefore !== undefined && i.stockAfter !== undefined && <p className="text-xs tabular-nums text-brand-700">Stock at sale: {fmtQty(i.stockBefore)} {i.baseUnit} − {fmtQty(i.qty * (i.unitFactor ?? 1))} {i.baseUnit} = {fmtQty(i.stockAfter)} {i.baseUnit} remaining</p>}
                         {i.serials?.length ? <p className="break-all font-mono text-xs tabular-nums text-muted-foreground">{i.serials.join(", ")}</p> : null}
                         {i.warrantyUntil !== undefined && <p className="text-xs text-muted-foreground">Warranty until {fmtDate(i.warrantyUntil)}</p>}
                         {seeCost && "costCents" in i && <p className="text-xs tabular-nums text-muted-foreground">cost {m(i.costCents)} each</p>}

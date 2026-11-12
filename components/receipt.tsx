@@ -23,7 +23,7 @@ export type ReceiptData = {
   createdAt: number;
   cashierName: string;
   customerName?: string;
-  items: { name: string; qty: number; priceCents: number; discountCents: number; unitName?: string; serials?: string[]; warrantyUntil?: number }[];
+  items: { name: string; qty: number; priceCents: number; discountCents: number; unitName?: string; baseUnit?: string; unitFactor?: number; serials?: string[]; warrantyUntil?: number }[];
   orderDiscountCents: number;
   taxCents: number;
   totalCents: number;
@@ -70,7 +70,8 @@ export function ReceiptView({ r, id, className }: { r: ReceiptData; id?: string;
           <div>{i.name}{i.unitName && ` (${i.unitName})`}</div>
           {i.serials?.map((s) => <div key={s}>  IMEI/SN: {s}</div>)}
           {i.warrantyUntil !== undefined && <div>  Warranty until {dateOf(i.warrantyUntil)}</div>}
-          <Row a={`${fmtQty(i.qty)}${i.unitName ? ` ${i.unitName}` : ""} x ${m(i.priceCents)}`} b={m(Math.round(i.qty * i.priceCents))} />
+          <Row a={`${fmtQty(i.qty)}${i.unitName || i.baseUnit ? ` ${i.unitName ?? i.baseUnit}` : ""} x ${m(i.priceCents)}`} b={m(Math.round(i.qty * i.priceCents))} />
+          {i.baseUnit && i.unitFactor && <div>  = {fmtQty(i.qty * i.unitFactor)} {i.baseUnit}</div>}
           {i.discountCents > 0 && <Row a="  discount" b={`-${m(i.discountCents)}`} />}
         </div>
       ))}
@@ -100,7 +101,8 @@ export function receiptText(r: ReceiptData) {
     r.receiptNo ? `Receipt #${r.receiptNo} - ${new Date(r.createdAt).toLocaleDateString("en-GB")}` : new Date(r.createdAt).toLocaleDateString("en-GB"),
     "",
     ...r.items.flatMap((i) => [
-      `${fmtQty(i.qty)}${i.unitName ? ` ${i.unitName}` : ""} x ${i.name} = ${m(Math.round(i.qty * i.priceCents) - i.discountCents)}`,
+      `${fmtQty(i.qty)}${i.unitName || i.baseUnit ? ` ${i.unitName ?? i.baseUnit}` : ""} x ${i.name} = ${m(Math.round(i.qty * i.priceCents) - i.discountCents)}`,
+      ...(i.baseUnit && i.unitFactor ? [`   ${fmtQty(i.qty * i.unitFactor)} ${i.baseUnit} in total`] : []),
       ...(i.serials?.length ? [`   IMEI/SN: ${i.serials.join(", ")}`] : []),
       ...(i.warrantyUntil !== undefined ? [`   Warranty until ${dateOf(i.warrantyUntil)}`] : []),
     ]),

@@ -5,6 +5,14 @@ export type PackUnit = { name: string; factor: number; barcode: string; priceCen
 /** Price of one pack: its own price, else factor x the base price (same rule as the server). */
 export const packPrice = (u: PackUnit, baseCents: number) => u.priceCents ?? Math.round(u.factor * baseCents);
 
+/** Equivalent full packs plus loose base units; this is pooled stock, not individual sack tracking. */
+export function packBalance(stock: number, factor: number) {
+  const quantity = Math.round(stock * 1000);
+  const size = Math.round(factor * 1000);
+  const whole = quantity < 0 ? 0 : Math.floor(quantity / size);
+  return { whole, loose: (quantity - whole * size) / 1000 };
+}
+
 /** Calendar months later, for "warranty until" on a provisional receipt. */
 export function addMonths(t: number, months: number) {
   const d = new Date(t);

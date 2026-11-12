@@ -10,6 +10,7 @@ const fields = {
   name: v.string(),
   description: v.string(),
   priceCents: v.number(),
+  yearlyPriceCents: v.optional(v.number()),
   trialDays: v.number(),
   maxUsers: v.number(),
   maxProducts: v.number(),
@@ -24,6 +25,7 @@ function clean(a: {
   name: string;
   description: string;
   priceCents: number;
+  yearlyPriceCents?: number;
   trialDays: number;
   maxUsers: number;
   maxProducts: number;
@@ -39,6 +41,7 @@ function clean(a: {
     name: str(a.name),
     description: str(a.description, 500),
     priceCents: cents(a.priceCents),
+    yearlyPriceCents: a.yearlyPriceCents === undefined ? undefined : cents(a.yearlyPriceCents),
     trialDays: cents(a.trialDays),
     maxUsers: cents(a.maxUsers),
     maxProducts: cents(a.maxProducts),

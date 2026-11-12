@@ -218,13 +218,25 @@ function Inner({ initial, again }: { initial?: ProductDetail; again: () => void 
             <Field label="Brand" hint="Optional"><Input value={f.brand} onChange={(e) => set({ brand: e.target.value })} /></Field>
           </div>
           <div className="grid items-start gap-4 sm:grid-cols-2">
-            <Field label="Unit"><NativeSelect value={f.unit} onChange={(unit) => set({ unit })} options={units.map((u) => ({ value: u, label: u }))} /></Field>
+            <Field label="Unit" hint={lockedKind ? "Locked while stock or variants exist. A sack sold by kg must use kg as its base unit." : "Smallest quantity you sell, e.g. kg or litre, not the full sack/container."}><NativeSelect value={f.unit} disabled={lockedKind} onChange={(unit) => set({ unit })} options={units.map((u) => ({ value: u, label: u }))} /></Field>
             {(on("weight") || f.allowDecimal) && <label className={cn("flex min-h-11 items-start gap-3 rounded-lg border p-3 sm:mt-6", tracking && "opacity-60")}>
               <Switch checked={f.allowDecimal} disabled={tracking} onCheckedChange={(allowDecimal) => set({ allowDecimal })} className="mt-0.5" />
               <span><span className="block text-sm font-medium">Sold by weight or length</span><span className="block text-xs text-muted-foreground">Allows quantities like 1.5 {f.unit}.</span></span>
             </label>}
           </div>
         </FormSection>
+
+        {!edit && showPacks && on("weight") && <div className="space-y-2 rounded-xl border bg-brand-50/50 p-3">
+          <p className="text-sm font-medium">Sell loose from a sack or oil container</p>
+          <p className="text-xs text-muted-foreground">Keep stock and prices per kg or litre. Add the full sack/container as a pack. Selling 2 kg from 25 kg leaves 23 kg.</p>
+          <div className="flex flex-wrap gap-2">
+            {[{ unit: "kg", factor: 25, name: "25kg sack" }, { unit: "kg", factor: 50, name: "50kg sack" }, { unit: "litre", factor: 20, name: "20L container" }].map((p) =>
+              <Button key={p.name} type="button" variant="outline" size="lg" onClick={() => {
+                set({ unit: p.unit, allowDecimal: true, units: [{ ...newURow(), name: p.name, factor: String(p.factor) }], opening: "" });
+                toast.message(`Stock and prices are now per ${p.unit}. Enter your opening stock in ${p.unit}.`);
+              }}>{p.name}</Button>)}
+          </div>
+        </div>}
 
         <FormSection title="Codes" desc="Scan or type. Each code must be unique in your shop.">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -252,7 +264,7 @@ function Inner({ initial, again }: { initial?: ProductDetail; again: () => void 
           </div>
         </FormSection>
 
-        <FormSection title="Pricing" desc={edit && !canPrice ? "You don't have permission to change prices." : "What you pay and what you charge."}>
+        <FormSection title="Pricing" desc={edit && !canPrice ? "You don't have permission to change prices." : `Cost and selling prices are per ${f.unit}. Set a separate full-pack price below if needed.`}>
           <div className={cn("grid gap-4", (seeCost ? 1 : 0) + 1 + (on("wholesale") || f.wholesale ? 1 : 0) === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
             {seeCost && <Field label="Cost price" error={err.cost} hint={f.hasVariants ? "Default for variants" : undefined}><MoneyInput cur={cur} value={f.cost} onChange={(cost) => set({ cost })} disabled={!canPrice} placeholder="0.00" aria-invalid={!!err.cost} /></Field>}
             <Field label={f.hasVariants ? "Selling price (default)" : "Selling price"} required error={err.price}><MoneyInput cur={cur} value={f.price} onChange={(price) => set({ price })} disabled={!canPrice} placeholder="0.00" aria-invalid={!!err.price} /></Field>

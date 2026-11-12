@@ -8,6 +8,8 @@ export type CartLine = {
   productId: Id<"products">;
   name: string;
   unit: string;
+  baseUnit?: string;
+  packs?: { name: string; factor: number }[];
   allowDecimal: boolean;
   retailCents: number;
   wholesaleCents?: number;

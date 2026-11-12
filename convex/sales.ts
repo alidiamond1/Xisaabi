@@ -147,6 +147,7 @@ export const create = mutation({
           discountCents: disc,
           costCents: unit ? Math.round(p.costCents * factor) : p.costCents,
           refundedQty: 0,
+          baseUnit: p.unit,
           ...(unit ? { unitName: unit.name, unitFactor: factor } : {}),
           ...(p.trackSerial ? { serials, warrantyUntil } : {}),
         },
@@ -191,11 +192,16 @@ export const create = mutation({
     const items: Sale["items"] = [];
     for (const { p: seen, item } of lines) {
       const p = (await ctx.db.get(seen._id))!; // re-read: the same product can have a base line and a pack line
-      const used = await stockOut(ctx, member, p, roundQty(item.qty * (item.unitFactor ?? 1)), "SALE", {
+      const deducted = roundQty(item.qty * (item.unitFactor ?? 1));
+      const used = await stockOut(ctx, member, p, deducted, "SALE", {
         allowNegative: settings.allowNegativeStock,
         ref: `Sale #${receiptNo}`,
       });
-      items.push(used.length ? { ...item, batches: used } : item);
+      items.push({
+        ...item,
+        ...(p.type === "STOCKABLE" ? { stockBefore: p.stock, stockAfter: roundQty(p.stock - deducted) } : {}),
+        ...(used.length ? { batches: used } : {}),
+      });
     }
 
     const shift = await openShiftOf(ctx, member._id);
@@ -410,6 +416,7 @@ export const refund = mutation({
         }
       }
       if (r.restock) {
+        if (it.baseUnit && it.baseUnit.toLowerCase() !== p.unit.toLowerCase()) fail("INVALID_INPUT");
         // put stock back into the batches the sale took it from, pro-rata by refunded qty
         let restore: BatchUse[] | undefined;
         if (it.batches?.length) {

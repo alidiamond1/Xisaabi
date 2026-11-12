@@ -33,7 +33,7 @@ import { formatCents } from "@/convex/shared/money";
 import { hasPermission } from "@/convex/shared/permissions";
 import { baseQty, fmtQty, lineKey, totals, unitPrice, useCart, type CartLine } from "@/lib/cart";
 import { useAttributeDefs, useFeature } from "@/lib/features";
-import { addMonths } from "@/lib/packs";
+import { addMonths, packBalance } from "@/lib/packs";
 import {
   addToOutbox, discardFromOutbox, flushOutbox, listOutbox, loadCatalog, onOutboxChange, saveCatalog,
   type CatalogItem, type CategoryItem, type OutboxSale, type PayMethod,
@@ -149,7 +149,7 @@ export default function PosPage() {
   /** A cart line for a product, in its base unit or in a pack. */
   const lineOf = (p: CatalogItem, unit?: PackChoice, serials?: string[]): Omit<CartLine, "qty" | "disc"> => {
     const counted = p.type === "STOCKABLE";
-    const common = { productId: p._id, name: p.name, allowDecimal: p.allowDecimal, stock: counted ? p.stock : null, serials, warrantyMonths: serials ? p.warrantyMonths : undefined };
+    const common = { productId: p._id, name: p.name, baseUnit: p.unit, packs: p.units?.map(({ name, factor }) => ({ name, factor })), allowDecimal: p.allowDecimal, stock: counted ? p.stock : null, serials, warrantyMonths: serials ? p.warrantyMonths : undefined };
     if (!unit) return { ...common, unit: p.unit, retailCents: p.priceCents, wholesaleCents: p.wholesalePriceCents };
     return {
       ...common, unit: unit.name, unitName: unit.name, unitFactor: unit.factor, retailCents: packCents(p, unit, false),
@@ -168,6 +168,15 @@ export default function PosPage() {
     }
     add(lineOf(p, unit, serials), qty);
   }, [add, st.allowNegativeStock]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function changeQty(l: CartLine, qty: number) {
+    const others = lines.filter((x) => x.productId === l.productId && lineKey(x) !== lineKey(l)).reduce((n, x) => n + baseQty(x), 0);
+    if (qty > 0 && l.stock !== null && !st.allowNegativeStock && others + baseQty({ ...l, qty }) > l.stock + 1e-9) {
+      toast.error(`Only ${fmtQty(l.stock)} ${l.baseUnit ?? l.unit} in stock.`);
+      return;
+    }
+    setQty(lineKey(l), qty);
+  }
 
   /** Tap or scan a product: IMEI products open the picker, products with packs ask which pack. */
   const tapProduct = (p: CatalogItem) => {
@@ -272,7 +281,7 @@ export default function PosPage() {
       createdAt: Date.now(),
       snapshot: {
         lines: lines.map((l, i) => ({
-          name: l.name, qty: l.qty, priceCents: t.rows[i].price, discountCents: t.rows[i].discount, unitName: l.unitName, serials: l.serials,
+          name: l.name, qty: l.qty, priceCents: t.rows[i].price, discountCents: t.rows[i].discount, unitName: l.unitName, baseUnit: l.baseUnit ?? (l.unitName ? undefined : l.unit), unitFactor: l.unitFactor, serials: l.serials,
           warrantyUntil: l.serials && l.warrantyMonths ? addMonths(Date.now(), l.warrantyMonths) : undefined,
         })),
         taxCents: t.taxCents, totalCents: t.totalCents, changeCents, customerName: customer?.name,
@@ -338,7 +347,8 @@ export default function PosPage() {
           <EmptyState icon={ShoppingCart} title="Cart is empty" desc="Tap a product or scan a barcode." />
         ) : lines.map((l, i) => (
           <CartRow key={lineKey(l)} l={l} row={t.rows[i]} m={m} canDiscount={canDiscount} wholesale={wholesale}
-            onQty={(q) => setQty(lineKey(l), q)} onRemove={() => remove(lineKey(l))}
+            remaining={l.stock === null ? null : l.stock - lines.filter((x) => x.productId === l.productId).reduce((n, x) => n + baseQty(x), 0)}
+            onQty={(q) => changeQty(l, q)} onRemove={() => remove(lineKey(l))}
             onKeypad={() => setKeypad({ id: l.productId, key: lineKey(l), name: l.name, unit: l.unit, initial: l.qty })}
             onSerials={() => { const p = catalog?.find((x) => x._id === l.productId); if (p) setSerialFor(p); }}
             onDiscount={() => setDiscTarget({ line: lineKey(l) })} />
@@ -459,9 +469,7 @@ export default function PosPage() {
           if (keypad.item) addProduct(keypad.item, q);
           else if (keypad.key) {
             const l = lines.find((x) => lineKey(x) === keypad.key);
-            const others = lines.filter((x) => x.productId === keypad.id && x !== l).reduce((n, x) => n + baseQty(x), 0);
-            if (l && l.stock !== null && !st.allowNegativeStock && others + q * (l.unitFactor ?? 1) > l.stock + 1e-9) toast.error(`Only ${fmtQty(l.stock)} in stock.`);
-            else setQty(keypad.key, q);
+            if (l) changeQty(l, q);
           }
           setKeypad(null);
         }} />
@@ -506,8 +514,9 @@ function Tile({ p, n, wholesale, m, low, negOk, onTap }: {
   );
 }
 
-function CartRow({ l, row, m, canDiscount, wholesale, onQty, onRemove, onKeypad, onSerials, onDiscount }: {
+function CartRow({ l, row, m, canDiscount, wholesale, remaining, onQty, onRemove, onKeypad, onSerials, onDiscount }: {
   l: CartLine; row: { price: number; gross: number; discount: number; net: number }; m: (c: number) => string; canDiscount: boolean; wholesale: boolean;
+  remaining: number | null;
   onQty: (q: number) => void; onRemove: () => void; onKeypad: () => void; onSerials: () => void; onDiscount: () => void;
 }) {
   const ws = wholesale && l.wholesaleCents !== undefined;
@@ -517,6 +526,11 @@ function CartRow({ l, row, m, canDiscount, wholesale, onQty, onRemove, onKeypad,
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{l.name}{l.unitName && <span className="ml-1.5 rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-800">{l.unitName}</span>}</p>
           <p className="text-xs tabular-nums text-muted-foreground">{m(unitPrice(l, wholesale))} / {l.unit}{ws && <span className="ml-1 font-semibold text-info">wholesale</span>}</p>
+          {l.baseUnit && (l.allowDecimal || l.unitFactor) && <p className="text-xs tabular-nums text-brand-700">Deducts {fmtQty(baseQty(l))} {l.baseUnit}{remaining !== null && ` · estimated after cart: ${fmtQty(remaining)} ${l.baseUnit}`}</p>}
+          {l.baseUnit && l.packs?.map((p) => {
+            const balance = remaining !== null && remaining >= 0 ? packBalance(remaining, p.factor) : null;
+            return <p key={p.name} className="text-xs tabular-nums text-muted-foreground">1 {p.name} = {fmtQty(p.factor)} {l.baseUnit}{balance && ` · after-cart equivalent: ${fmtQty(balance.whole)} full + ${fmtQty(balance.loose)} ${l.baseUnit} loose`}</p>;
+          })}
           {l.serials && <p className="break-all font-mono text-xs tabular-nums text-muted-foreground">{l.serials.join(", ")}</p>}
         </div>
         <div className="shrink-0 text-right text-sm font-semibold tabular-nums">

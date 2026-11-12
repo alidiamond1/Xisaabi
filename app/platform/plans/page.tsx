@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { MODULE_KEYS, type ModuleKey } from "@/convex/shared/modules";
 import { formatCents, parseToCents } from "@/convex/shared/money";
+import { planPriceCents } from "@/convex/shared/subscriptions";
 import { MODULE_LABELS as BASE_LABELS } from "@/lib/apps";
 import { act, run } from "@/lib/run";
 import { cn } from "@/lib/utils";
@@ -35,12 +36,13 @@ export default function PlansPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {plans.map((p) => (
             <Panel key={p._id} className={cn("flex flex-col p-5", !p.isActive && "opacity-60")}>
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold">{p.name}</h3>
-                <div className="flex gap-1">{p.isDefaultTrial && <Pill tone="indigo">Default trial</Pill>}{!p.isActive && <Pill tone="slate">Inactive</Pill>}</div>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <h3 className="min-w-0 break-words font-semibold">{p.name}</h3>
+                <div className="flex flex-wrap gap-1">{p.isDefaultTrial && <Pill tone="indigo">Default trial</Pill>}{!p.isActive && <Pill tone="slate">Inactive</Pill>}</div>
               </div>
               <p className="text-sm text-muted-foreground">{p.description}</p>
               <p className="mt-2 text-2xl font-semibold tabular-nums">{formatCents(p.priceCents)}<span className="text-sm font-normal text-muted-foreground"> / mo</span></p>
+              <p className="text-sm tabular-nums text-muted-foreground">{formatCents(planPriceCents(p, "yearly"))} / year{p.yearlyPriceCents === undefined && " · monthly × 12"}</p>
               <p className="text-xs text-muted-foreground">{p.maxUsers || "Unlimited"} users · {p.maxProducts || "Unlimited"} products{p.trialDays > 0 && ` · ${p.trialDays}-day trial`}</p>
               <div className="mt-3 flex flex-wrap gap-1">{p.modules.map((m) => <Pill key={m} tone="slate">{MODULE_LABELS[m]}</Pill>)}</div>
               <ul className="mt-3 flex-1 space-y-1 text-sm">{p.features.map((f) => <li key={f} className="flex gap-2"><Check className="mt-0.5 size-4 text-emerald-600" />{f}</li>)}</ul>
@@ -69,6 +71,7 @@ function PlanForm({ plan, nextSort, onClose }: { plan: Plan | null; nextSort: nu
   const update = useMutation(api.platformPlans.update);
   const [f, setF] = useState({
     name: plan?.name ?? "", description: plan?.description ?? "", price: plan ? (plan.priceCents / 100).toString() : "0",
+    yearlyPrice: plan?.yearlyPriceCents === undefined ? "" : String(plan.yearlyPriceCents / 100),
     trialDays: String(plan?.trialDays ?? 0), maxUsers: String(plan?.maxUsers ?? 0), maxProducts: String(plan?.maxProducts ?? 0),
     features: (plan?.features ?? []).join("\n"), sortOrder: String(plan?.sortOrder ?? nextSort),
   });
@@ -76,15 +79,22 @@ function PlanForm({ plan, nextSort, onClose }: { plan: Plan | null; nextSort: nu
   const [isDefaultTrial, setTrial] = useState(plan?.isDefaultTrial ?? false);
   const [isActive, setActive] = useState(plan?.isActive ?? true);
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const priceCents = parseToCents(f.price);
+    const yearlyPriceCents = f.yearlyPrice.trim() ? parseToCents(f.yearlyPrice) : undefined;
     const nums = [f.trialDays, f.maxUsers, f.maxProducts, f.sortOrder].map(Number);
-    if (priceCents === null || nums.some((n) => !Number.isInteger(n) || n < 0)) return void act(Promise.reject({ data: "INVALID_INPUT" }));
+    const nextErrors: Record<string, string> = {};
+    if (priceCents === null) nextErrors.price = "Enter a valid monthly amount, such as 12.50.";
+    if (yearlyPriceCents === null) nextErrors.yearlyPrice = "Enter a valid yearly amount, or leave it blank.";
+    ["trialDays", "maxUsers", "maxProducts", "sortOrder"].forEach((key, i) => { if (!Number.isInteger(nums[i]) || nums[i] < 0) nextErrors[key] = "Enter a whole number, 0 or more."; });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length || priceCents === null || yearlyPriceCents === null) return;
     const body = {
-      name: f.name.trim(), description: f.description.trim(), priceCents, trialDays: nums[0], maxUsers: nums[1], maxProducts: nums[2], sortOrder: nums[3],
+      name: f.name.trim(), description: f.description.trim(), priceCents, yearlyPriceCents, trialDays: nums[0], maxUsers: nums[1], maxProducts: nums[2], sortOrder: nums[3],
       modules, features: f.features.split("\n").map((s) => s.trim()).filter(Boolean), isDefaultTrial, isActive,
     };
     setBusy(true);
@@ -97,11 +107,12 @@ function PlanForm({ plan, nextSort, onClose }: { plan: Plan | null; nextSort: nu
       <Field label="Name"><Input value={f.name} onChange={set("name")} required maxLength={100} /></Field>
       <Field label="Description"><Input value={f.description} onChange={set("description")} required maxLength={500} /></Field>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Field label="Price / month"><Input inputMode="decimal" value={f.price} onChange={set("price")} /></Field>
-        <Field label="Trial days"><Input inputMode="numeric" value={f.trialDays} onChange={set("trialDays")} /></Field>
-        <Field label="Sort order"><Input inputMode="numeric" value={f.sortOrder} onChange={set("sortOrder")} /></Field>
-        <Field label="Max users" hint="0 = unlimited"><Input inputMode="numeric" value={f.maxUsers} onChange={set("maxUsers")} /></Field>
-        <Field label="Max products" hint="0 = unlimited"><Input inputMode="numeric" value={f.maxProducts} onChange={set("maxProducts")} /></Field>
+        <Field label="Price / month" error={errors.price}><Input inputMode="decimal" value={f.price} onChange={set("price")} aria-invalid={!!errors.price} /></Field>
+        <Field label="Price / year" error={errors.yearlyPrice} hint="Optional. Blank uses monthly × 12."><Input inputMode="decimal" value={f.yearlyPrice} onChange={set("yearlyPrice")} aria-invalid={!!errors.yearlyPrice} placeholder={parseToCents(f.price) === null ? "Automatic" : String((parseToCents(f.price)! * 12) / 100)} /></Field>
+        <Field label="Trial days" error={errors.trialDays}><Input inputMode="numeric" value={f.trialDays} onChange={set("trialDays")} aria-invalid={!!errors.trialDays} /></Field>
+        <Field label="Sort order" error={errors.sortOrder}><Input inputMode="numeric" value={f.sortOrder} onChange={set("sortOrder")} aria-invalid={!!errors.sortOrder} /></Field>
+        <Field label="Max users" hint="0 = unlimited" error={errors.maxUsers}><Input inputMode="numeric" value={f.maxUsers} onChange={set("maxUsers")} aria-invalid={!!errors.maxUsers} /></Field>
+        <Field label="Max products" hint="0 = unlimited" error={errors.maxProducts}><Input inputMode="numeric" value={f.maxProducts} onChange={set("maxProducts")} aria-invalid={!!errors.maxProducts} /></Field>
       </div>
       <Field label="Modules included">
         <div className="grid grid-cols-2 gap-2">
@@ -113,7 +124,7 @@ function PlanForm({ plan, nextSort, onClose }: { plan: Plan | null; nextSort: nu
         </div>
       </Field>
       <Field label="Marketing bullets" hint="One per line."><Textarea rows={4} value={f.features} onChange={set("features")} /></Field>
-      <div className="flex gap-6 text-sm">
+      <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2"><Switch checked={isDefaultTrial} onCheckedChange={setTrial} />Default trial plan for new signups</label>
         <label className="flex items-center gap-2"><Switch checked={isActive} onCheckedChange={setActive} />Active</label>
       </div>

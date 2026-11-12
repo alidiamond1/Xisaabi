@@ -44,7 +44,7 @@ export function PacksSection({ rows, onChange, unit, allowDecimal, priceCents, c
   return (
     <FormSection title="Packs & units" desc={`Sell or buy in bigger packs. Stock is always counted in ${unit}.`}>
       <datalist id={list}>{suggestions.filter((s) => s.toLowerCase() !== unit.toLowerCase()).map((s) => <option key={s} value={s} />)}</datalist>
-      {rows.length === 0 && <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground">No packs yet. Add one if you also sell this by the box, strip or carton, for example 1 box = 10 {unit}.</p>}
+      {rows.length === 0 && <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground">Add bigger packs, e.g. 1 sack = 25 kg or 1 oil container = 20 litres. Choose kg/litre as the base unit to sell loose amounts; stock and base prices stay per {unit}.</p>}
       {rows.map((r, i) => {
         const f = parseQty(r.factor);
         const auto = priceCents !== null && f !== null ? Math.round(f * priceCents) : null;

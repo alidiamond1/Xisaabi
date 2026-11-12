@@ -30,6 +30,15 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
+  readonly SNAP_API_BASE_URL: string | undefined;
+  readonly SNAP_APP_ORIGIN: string | undefined;
+  readonly SNAP_CHECKOUT_ORIGINS: string | undefined;
+  readonly SNAP_ENABLE_LIVE: string | undefined;
+  readonly SNAP_ENVIRONMENT: string | undefined;
+  readonly SNAP_MERCHANT_ID: string | undefined;
+  readonly SNAP_SANDBOX_BUSINESS_IDS: string | undefined;
+  readonly SNAP_SECRET_KEY: string | undefined;
+  readonly SNAP_WEBHOOK_SECRET: string | undefined;
 };
 
 /**

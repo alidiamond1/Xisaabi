@@ -22,7 +22,7 @@ export type OutboxSale = {
   createdAt: number;
   // local snapshot for a provisional receipt
   snapshot: {
-    lines: { name: string; qty: number; priceCents: number; discountCents: number; unitName?: string; serials?: string[]; warrantyUntil?: number }[];
+    lines: { name: string; qty: number; priceCents: number; discountCents: number; unitName?: string; baseUnit?: string; unitFactor?: number; serials?: string[]; warrantyUntil?: number }[];
     taxCents: number;
     totalCents: number;
     changeCents: number;

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /** Big numeric keypad for weight / length. Value stays a string so "1." and "0.50" type naturally. */
-export function KeypadDialog({ open, title, unit, initial, presets = [0.25, 0.5, 1, 2], onClose, onApply }: {
+export function KeypadDialog({ open, title, unit, initial, presets = [0.25, 0.5, 1, 2, 3, 4], onClose, onApply }: {
   open: boolean; title: string; unit: string; initial?: number; presets?: number[]; onClose: () => void; onApply: (qty: number) => void;
 }) {
   return (
@@ -35,7 +35,7 @@ function Pad({ title, unit, initial, presets, onApply }: { title: string; unit: 
       <div className="rounded-xl border bg-muted/40 px-4 py-3 text-right font-display text-4xl font-semibold tabular-nums" aria-live="polite">
         {v || "0"}<span className="ml-1.5 text-base font-medium text-muted-foreground">{unit}</span>
       </div>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {presets.map((p) => <Button key={p} type="button" variant="outline" size="lg" className="flex-1 tabular-nums" onClick={() => setV(String(p))}>{p}</Button>)}
       </div>
       <div className="grid grid-cols-3 gap-2">

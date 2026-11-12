@@ -1,10 +1,13 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { Check } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PeriodSelector } from "@/components/billing/period-selector";
+import { planPriceCents, type BillingPeriod } from "@/convex/shared/subscriptions";
 import { formatCents } from "@/convex/shared/money";
 import { MODULE_LABELS } from "@/lib/apps";
 import { cn } from "@/lib/utils";
@@ -13,23 +16,30 @@ const limit = (n: number) => (n === 0 ? "Unlimited" : String(n));
 
 export function Pricing({ compare }: { compare?: boolean }) {
   const plans = useQuery(api.plans.publicList);
+  const [period, setPeriod] = useState<BillingPeriod>("monthly");
   if (plans === undefined) {
     return <div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-80 rounded-2xl" />)}</div>;
   }
   const trial = plans.find((p) => p.isDefaultTrial && p.trialDays > 0) ?? plans.find((p) => p.trialDays > 0);
+  if (plans.length === 0) return <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Plans are not available yet. <Link href="/contact" className="font-medium text-brand-700 underline">Contact us</Link> for help.</p>;
   return (
     <>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <PeriodSelector value={period} onChange={setPeriod} />
+        <p className="text-sm text-muted-foreground" aria-live="polite">{period === "yearly" ? "Full yearly price, billed once a year." : "Billed monthly."}</p>
+      </div>
       <div className="grid gap-5 md:grid-cols-3">
         {plans.map((p, i) => {
           const featured = plans.length > 2 ? i === 1 : i === plans.length - 1;
+          const price = planPriceCents(p, period);
           return (
             <div key={p._id} className={cn("relative flex flex-col rounded-2xl border bg-card p-6 shadow-card", featured && "border-brand-600 shadow-pop ring-1 ring-brand-600")}>
               {featured && <span className="absolute -top-3 left-6 rounded-full bg-gold px-3 py-0.5 text-xs font-semibold text-brand-950">Most popular</span>}
-              <h3 className="font-display text-lg font-semibold">{p.name}</h3>
-              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{p.description}</p>
+              <h3 className="break-words font-display text-lg font-semibold">{p.name}</h3>
+              <p className="mt-1 min-h-10 break-words text-sm text-muted-foreground">{p.description}</p>
               <p className="mt-4 font-display text-4xl font-semibold tabular-nums tracking-tight">
-                {p.priceCents === 0 ? "Free" : formatCents(p.priceCents)}
-                {p.priceCents > 0 && <span className="text-sm font-normal text-muted-foreground"> / month</span>}
+                {price === 0 ? "Free" : formatCents(price)}
+                {price > 0 && <span className="text-sm font-normal text-muted-foreground"> / {period === "yearly" ? "year" : "month"}</span>}
               </p>
               {p.trialDays > 0 && <p className="text-xs font-medium text-brand-700">{p.trialDays}-day free trial</p>}
               <ul className="mt-5 flex-1 space-y-2.5 text-sm">
@@ -60,7 +70,7 @@ export function Pricing({ compare }: { compare?: boolean }) {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                <Row label="Price per month" cells={plans.map((p) => (p.priceCents === 0 ? "Free" : formatCents(p.priceCents)))} />
+                <Row label={period === "yearly" ? "Price per year" : "Price per month"} cells={plans.map((p) => (planPriceCents(p, period) === 0 ? "Free" : formatCents(planPriceCents(p, period))))} />
                 <Row label="Users" cells={plans.map((p) => limit(p.maxUsers))} />
                 <Row label="Products" cells={plans.map((p) => limit(p.maxProducts))} />
                 <Row label="Modules" cells={plans.map((p) => p.modules.map((m) => MODULE_LABELS[m] ?? m).join(", "))} />

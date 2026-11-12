@@ -1,5 +1,7 @@
 // Error codes thrown as ConvexError(code). The UI maps them to messages.
 export const ERROR_MESSAGES = {
+  PAYMENT_GATEWAY_UNAVAILABLE: "Online payments are not configured. Please contact support or use the manual payment option.",
+  PAYMENT_VERIFICATION_FAILED: "The payment could not be verified. Contact support if money was deducted.",
   UNAUTHENTICATED: "Please log in again.",
   FORBIDDEN: "You don't have access to this.",
   NOT_FOUND: "Not found.",

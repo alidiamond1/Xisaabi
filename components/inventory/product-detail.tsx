@@ -18,7 +18,7 @@ import { daysLeft } from "@/convex/shared/expiry";
 import { formatCents, parseToCents } from "@/convex/shared/money";
 import { hasPermission } from "@/convex/shared/permissions";
 import { useAttributeDefs, useFeatures } from "@/lib/features";
-import { packPrice } from "@/lib/packs";
+import { packBalance, packPrice } from "@/lib/packs";
 import { act } from "@/lib/run";
 import { fmtDate, fmtDateTime } from "@/lib/session";
 import { AdjustStockDialog } from "./adjust-dialog";
@@ -135,12 +135,16 @@ function Loaded({ d }: { d: Detail }) {
                   <h3 className="border-b px-4 py-3 text-sm font-semibold">Packs &amp; units</h3>
                   <ul className="divide-y text-sm">
                     <li className="flex items-center justify-between gap-3 px-4 py-2.5"><span className="font-medium">{p.unit} <span className="font-normal text-muted-foreground">(base unit)</span></span><span className="tabular-nums">{formatCents(p.priceCents, cur)}</span></li>
-                    {p.units!.map((u) => (
+                    {p.units!.map((u) => {
+                      const balance = stocked && p.stock >= 0 ? packBalance(p.stock, u.factor) : null;
+                      return (
                       <li key={u.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 px-4 py-2.5">
                         <span><span className="font-medium">{u.name}</span> <span className="text-muted-foreground">= {fmtQty(u.factor)} {p.unit}{u.barcode && ` · ${u.barcode}`}</span></span>
                         <span className="tabular-nums">{formatCents(packPrice(u, p.priceCents), cur)}{u.priceCents === undefined && <span className="text-xs text-muted-foreground"> auto</span>}</span>
+                        {balance && <span className="w-full text-xs tabular-nums text-muted-foreground">Stock equivalent: {fmtQty(balance.whole)} full {u.name} + {fmtQty(balance.loose)} {p.unit} loose</span>}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </Panel>
               )}

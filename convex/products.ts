@@ -460,6 +460,7 @@ export const update = mutation({
     }
     // stock is untouchable here, so changes that would leave existing stock inconsistent are refused
     if ((d.type !== p.type || d.trackExpiry !== p.trackExpiry) && (p.stock !== 0 || p.hasVariants)) fail("INVALID_INPUT");
+    if (d.unit.toLowerCase() !== p.unit.toLowerCase() && (p.stock !== 0 || p.hasVariants)) fail("INVALID_INPUT");
     if (!d.allowDecimal && !Number.isInteger(p.stock)) fail("INVALID_INPUT");
     // serial tracking can only be switched while there is no stock to account for
     if (d.trackSerial !== (p.trackSerial ?? false) && (p.stock !== 0 || p.hasVariants)) fail("INVALID_INPUT");

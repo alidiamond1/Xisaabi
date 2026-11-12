@@ -83,6 +83,7 @@ export default defineSchema({
     name: v.string(),
     description: v.string(),
     priceCents: v.number(), // per month, USD
+    yearlyPriceCents: v.optional(v.number()), // full year; absent = 12 monthly payments
     trialDays: v.number(), // >0 only on the plan new signups get
     maxUsers: v.number(), // 0 = unlimited
     maxProducts: v.number(), // 0 = unlimited
@@ -145,6 +146,34 @@ export default defineSchema({
     .index("by_subscription_end", ["subscriptionEndsAt"]),
 
   // Manual payments (EVC / Zaad / bank) recorded by platform staff.
+  subscriptionCheckouts: defineTable({
+    businessId: v.id("businesses"),
+    memberId: v.id("members"),
+    planId: v.id("plans"),
+    planName: v.string(),
+    period: v.union(v.literal("monthly"), v.literal("yearly")),
+    amountCents: v.number(),
+    environment: v.union(v.literal("sandbox"), v.literal("live")),
+    merchantId: v.string(),
+    status: v.union(v.literal("PENDING"), v.literal("PAID"), v.literal("EXPIRED")),
+    requestBody: v.string(), // immutable body for SNAP's never-expiring idempotency key
+    apiBaseUrl: v.string(),
+    sessionId: v.optional(v.string()),
+    checkoutUrl: v.optional(v.string()),
+    paymentId: v.optional(v.string()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    paidAt: v.optional(v.number()),
+    paymentRecordId: v.optional(v.id("subscriptionPayments")),
+  }).index("by_businessId_and_status", ["businessId", "status"])
+    .index("by_paymentId", ["paymentId"]),
+
+  snapWebhookEvents: defineTable({
+    eventId: v.string(),
+    checkoutId: v.optional(v.id("subscriptionCheckouts")),
+    createdAt: v.number(),
+  }).index("by_eventId", ["eventId"]),
+
   subscriptionPayments: defineTable({
     businessId: v.id("businesses"),
     planId: v.id("plans"),
@@ -526,6 +555,9 @@ export default defineSchema({
         batches: v.optional(v.array(v.object({ batchId: v.id("batches"), qty: v.number() }))),
         unitName: v.optional(v.string()), // unit sold in; qty/price are per this unit
         unitFactor: v.optional(v.number()), // base units per sold unit (stock moves qty × factor)
+        baseUnit: v.optional(v.string()),
+        stockBefore: v.optional(v.number()), // base-unit balance at sale time, not the current balance
+        stockAfter: v.optional(v.number()),
         serials: v.optional(v.array(v.string())),
         warrantyUntil: v.optional(v.number()),
       }),

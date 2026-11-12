@@ -3,6 +3,7 @@ import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import { components } from "../_generated/api";
 
 export const limiter = new RateLimiter(components.rateLimiter, {
+  checkoutCreate: { kind: "fixed window", rate: 10, period: MINUTE },
   scanPush: { kind: "token bucket", rate: 120, period: MINUTE, capacity: 120 }, // key: session id
   lookupMinute: { kind: "token bucket", rate: 10, period: MINUTE, capacity: 10 }, // key: business id
   lookupDay: { kind: "fixed window", rate: 1000, period: 24 * 60 * MINUTE }, // key: business id

@@ -147,6 +147,97 @@ describe("business types", () => {
 });
 
 describe("units (packs)", () => {
+  it.each([25, 50])("owner configures %skg sacks and sells both full sacks and loose kilos from the same stock", async (capacity) => {
+    const A = as(F.A);
+    const unitName = `${capacity}kg sack`;
+    const packPrice = capacity * 140;
+    const pid = await A.mutation(api.products.create, prod({ name: "Rice", unit: "kg", allowDecimal: true,
+      units: [{ name: unitName, factor: capacity, barcode: `sack-${capacity}`, priceCents: packPrice }], openingStock: 0 }));
+    await A.mutation(api.purchases.create, { items: [{ productId: pid, qty: 2, unitCostCents: capacity * 100, unitName }],
+      otherCostCents: 0, paidCents: capacity * 200, paidMethod: "CASH", note: "" });
+    expect((await get(pid)).stock).toBe(capacity * 2);
+    const lookup = await A.query(api.products.lookupLocal, { code: `sack-${capacity}` });
+    expect(lookup?.unit).toMatchObject({ name: unitName, factor: capacity });
+
+    const whole = await A.mutation(api.sales.create, sale([li(pid, 1, { unitName })], packPrice));
+    expect((await get(whole.saleId)).items[0]).toMatchObject({ qty: 1, unitName, unitFactor: capacity,
+      baseUnit: "kg", priceCents: packPrice, stockBefore: capacity * 2, stockAfter: capacity });
+    const loose = await A.mutation(api.sales.create, sale([li(pid, 2), li(pid, 3)], 750));
+    expect((await get(loose.saleId)).items[0]).toMatchObject({ qty: 5, baseUnit: "kg", priceCents: 150,
+      stockBefore: capacity, stockAfter: capacity - 5 });
+    expect((await get(pid)).stock).toBe(capacity - 5);
+    expect(await code(A.mutation(api.sales.create, sale([li(pid, 1, { unitName })], packPrice)))).toBe("INSUFFICIENT_STOCK");
+    expect((await get(pid)).stock).toBe(capacity - 5);
+
+    await A.mutation(api.sales.refund, { saleId: loose.saleId, items: [{ productId: pid, qty: 3, restock: true }], method: "CASH", reason: "returned loose kilos" });
+    expect((await get(pid)).stock).toBe(capacity - 2);
+    await A.mutation(api.sales.refund, { saleId: whole.saleId, items: [{ productId: pid, qty: 1, unitName, restock: true }], method: "CASH", reason: "returned full sack" });
+    expect((await get(pid)).stock).toBe(capacity * 2 - 2);
+  });
+
+  it("receives a 25kg sack and sells loose kilos with clear stock snapshots, refunds and retry safety", async () => {
+    const A = as(F.A);
+    const pid = await A.mutation(api.products.create, prod({ name: "Rice", unit: "kg", allowDecimal: true,
+      units: [{ name: "25kg sack", factor: 25, barcode: "" }], openingStock: 0 }));
+    await A.mutation(api.purchases.create, { items: [{ productId: pid, qty: 1, unitCostCents: 2500, unitName: "25kg sack" }], otherCostCents: 0, paidCents: 2500, paidMethod: "CASH", note: "" });
+    expect((await get(pid)).stock).toBe(25);
+    expect((await get(pid)).costCents).toBe(100);
+    const first = await A.mutation(api.sales.create, sale([li(pid, 2)], 300));
+    expect((await get(first.saleId)).items[0]).toMatchObject({ qty: 2, baseUnit: "kg", stockBefore: 25, stockAfter: 23, priceCents: 150 });
+    const retry = sale([li(pid, 3)], 450);
+    const second = await A.mutation(api.sales.create, retry);
+    expect((await get(second.saleId)).items[0]).toMatchObject({ qty: 3, baseUnit: "kg", stockBefore: 23, stockAfter: 20 });
+    expect((await A.mutation(api.sales.create, retry)).duplicate).toBe(true);
+    expect((await get(pid)).stock).toBe(20);
+    const fraction = await A.mutation(api.sales.create, sale([li(pid, .5)], 75));
+    expect((await get(pid)).stock).toBe(19.5);
+    await A.mutation(api.sales.refund, { saleId: fraction.saleId, items: [{ productId: pid, qty: .5, restock: true }], method: "CASH", reason: "returned" });
+    expect((await get(pid)).stock).toBe(20);
+    expect((await get(fraction.saleId)).items[0]).toMatchObject({ stockBefore: 20, stockAfter: 19.5 });
+    const moves = await t.run(ctx => ctx.db.query("stockMovements").withIndex("by_product", q => q.eq("productId", pid)).collect());
+    expect(moves.map(m => m.qty)).toEqual([25, -2, -3, -.5, .5]);
+  });
+
+  it("mixed full sack and loose kg rows use sequential balances and the pack price", async () => {
+    const A = as(F.A);
+    const pid = await A.mutation(api.products.create, prod({ name: "Rice", unit: "kg", allowDecimal: true,
+      units: [{ name: "50kg sack", factor: 50, barcode: "", priceCents: 6000 }], openingStock: 100 }));
+    const r = await A.mutation(api.sales.create, sale([li(pid, 1, { unitName: "50kg sack" }), li(pid, 4)], 6600));
+    const s = await get(r.saleId);
+    expect(s.items[0]).toMatchObject({ qty: 1, unitFactor: 50, baseUnit: "kg", priceCents: 6000, stockBefore: 100, stockAfter: 50 });
+    expect(s.items[1]).toMatchObject({ qty: 4, priceCents: 150, stockBefore: 50, stockAfter: 46 });
+    expect((await get(pid)).stock).toBe(46);
+    await A.mutation(api.sales.refund, { saleId: r.saleId, items: [{ productId: pid, qty: 1, unitName: "50kg sack", restock: true }], method: "CASH", reason: "returned" });
+    expect((await get(pid)).stock).toBe(96);
+  });
+
+  it("pours litres from an oil container and refuses to silently relabel existing stock", async () => {
+    const A = as(F.A);
+    const config = prod({ name: "Oil", unit: "litre", allowDecimal: true,
+      units: [{ name: "20L container", factor: 20, barcode: "" }] });
+    const pid = await A.mutation(api.products.create, { ...config, openingStock: 20 });
+    const r = await A.mutation(api.sales.create, sale([li(pid, 1.5)], 225));
+    expect((await get(r.saleId)).items[0]).toMatchObject({ baseUnit: "litre", qty: 1.5, stockBefore: 20, stockAfter: 18.5 });
+    expect((await get(pid)).stock).toBe(18.5);
+    expect(await code(A.mutation(api.products.update, { productId: pid, ...config, unit: "container" }))).toBe("INVALID_INPUT");
+    expect((await get(pid)).unit).toBe("litre");
+    expect((await get(pid)).stock).toBe(18.5);
+    expect(await code(A.mutation(api.sales.create, sale([li(pid, 19)], 2850)))).toBe("INSUFFICIENT_STOCK");
+  });
+
+  it("sale snapshots use the rounded stock deduction and prevent refunding into a changed base unit", async () => {
+    const A = as(F.A);
+    const config = prod({ name: "Measured", unit: "kg", allowDecimal: true, priceCents: 2000,
+      units: [{ name: "half kilo", factor: .5, barcode: "" }] });
+    const pid = await A.mutation(api.products.create, { ...config, openingStock: .001 });
+    const r = await A.mutation(api.sales.create, sale([li(pid, .001, { unitName: "half kilo" })], 1));
+    expect((await get(pid)).stock).toBe(0);
+    expect((await get(r.saleId)).items[0]).toMatchObject({ stockBefore: .001, stockAfter: 0 });
+    await A.mutation(api.products.update, { productId: pid, ...config, unit: "gram" });
+    expect(await code(A.mutation(api.sales.refund, { saleId: r.saleId, items: [{ productId: pid, qty: .001, unitName: "half kilo", restock: true }], method: "CASH", reason: "returned" }))).toBe("INVALID_INPUT");
+    expect((await get(pid)).stock).toBe(0);
+  });
+
   const withCarton = (o: Record<string, unknown> = {}) =>
     prod({
       name: "Cola", barcode: "111", units: [{ name: "carton", factor: 24, barcode: "222" }, { name: "dozen", factor: 12, barcode: "", priceCents: 1500 }],
